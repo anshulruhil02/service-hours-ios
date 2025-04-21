@@ -1,0 +1,23 @@
+# Xcode
+build/
+DerivedData/
+*.xcscheme
+*.xcuserdata/
+
+# Swift Package Manager
+.build/
+Packages/
+*.resolved
+
+# Cocoapods
+Pods/
+
+# Carthage
+Carthage/
+
+# Secrets (if applicable)
+secrets.plist
+*.key
+
+# OS generated files
+.DS_Store
