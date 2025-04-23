@@ -162,16 +162,6 @@ extension SignUpView {
             let updateParams = SignUp.UpdateParams(unsafeMetadata: jsonValue)
 
             try await signUp.update(params: updateParams)
-            
-//            // Prepare for the email verification step
-//            if signUp.verifications.emailAddress.status != .verified {
-//                 try await signUp.prepareVerification(strategy: .emailCode)
-//                 isVerifying = true // Move to the code entry view state
-//                 logger.info("Sign up prepared, awaiting verification code for \(email)")
-//            } else {
-//                 logger.info("Sign up completed and email already verified for \(email)")
-//                 // Handle auto-verified case if necessary
-//            }
             try await signUp.prepareVerification(strategy: .emailCode)
             
             isVerifying = true
@@ -184,40 +174,6 @@ extension SignUpView {
         }
     }
     
-//    func verify(code: String) async {
-//        errorMessage = nil
-//        
-//        guard let client = clerk.client, let signUp = client.signUp else {
-//            errorMessage = "Sign up process not found."
-//            logger.error("Clerk client or sign up process not found during verification.")
-//            isVerifying = false // Reset state
-//            return
-//        }
-//        
-//        do {
-//            // Attempt to verify the email using the code
-//            let result = try await signUp.attemptVerification(strategy: .emailCode(code: code))
-//            
-//            // Check if sign up is complete and set the session
-//            if result.status == .complete {
-//                 logger.info("Sign up verification successful and complete for \(email)")
-//                 // Setting the session makes the user logged in within the SDK
-//                 try await clerk.client?.session?.set(session: result.createdSessionId, beforeEmit: nil)
-//                 isVerifying = false // Verification done
-//                 // Navigation away from signup should happen automatically
-//                 // if your root view observes Clerk's auth state.
-//            } else {
-//                 logger.warning("Sign up verification status: \(result.status)")
-//                 errorMessage = "Verification might not be complete. Status: \(result.status)"
-//            }
-//            
-//        } catch {
-//            logger.error("Sign up verification failed: \(error.localizedDescription)")
-//            errorMessage = error.localizedDescription
-//            dump(error)
-//        }
-//    }
-    
     func verify(code: String) async {
         do {
             guard let signUp = Clerk.shared.client?.signUp else {
@@ -225,14 +181,21 @@ extension SignUpView {
                 return
             }
             
-            
             try await signUp.attemptVerification(strategy: .emailCode(code: code))
-            let session = Clerk.shared.session
-            
-            if let token = try await session?.getToken()?.jwt {
-                print("token: \(token)")
+            let apiService = APIService() // Create instance (or get from environment/DI later)
+            do {
+                let userProfile = try await apiService.fetchUserProfile()
+                // SUCCESS! Backend verified token and found/created user in DB.
+                logger.info("Successfully fetched profile from backend for user: \(userProfile.email)")
+                // TODO: Store userProfile in your app's state management
+                //       (e.g., update an @State variable, call a ViewModel function)
+                //       This data (role, schoolId, etc.) is now available.
+            } catch {
+                // Handle errors specifically from fetchUserProfile
+                logger.error("Failed to fetch user profile from backend: \(error.localizedDescription)")
+                errorMessage = "Login succeeded, but failed to sync profile. Please try again later."
+                dump(error) // Log detailed APIError
             }
-            
         } catch {
             dump(error)
         }
