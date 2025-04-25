@@ -13,7 +13,7 @@ struct SignInView: View {
   @State private var password = ""
 
   var body: some View {
-    VStack {
+    VStack(spacing: 5) {
       Text("Sign In")
       TextField("Email", text: $email)
       SecureField("Password", text: $password)

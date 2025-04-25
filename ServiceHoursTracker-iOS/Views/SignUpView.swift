@@ -18,8 +18,6 @@ struct SignUpView: View {
     @State private var password = ""
     @State private var firstName = ""
     @State private var lastName = ""
-    @State private var oen = ""
-    @State private var schoolID = ""
     
     // State for verification step
     @State private var isVerifying = false
@@ -85,17 +83,6 @@ struct SignUpView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(8)
                 
-                TextField("OEN Number", text: $oen)
-                    .keyboardType(.numberPad) // Adjust keyboard type if needed
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                
-                TextField("School ID", text: $schoolID)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                
                 Button("Sign Up") {
                     Task { await signUp() }
                 }
@@ -123,45 +110,23 @@ extension SignUpView {
         errorMessage = nil // Clear previous errors
         
         // Basic frontend validation (adjust based on actual requirements)
-        guard !email.isEmpty, !password.isEmpty, !firstName.isEmpty, !lastName.isEmpty, !oen.isEmpty, !schoolID.isEmpty else {
+        guard !email.isEmpty, !password.isEmpty, !firstName.isEmpty, !lastName.isEmpty else {
             errorMessage = "Please fill out all fields."
             return
         }
-        
-        // Ensure clerk client is available
-        guard let client = clerk.client else {
-            errorMessage = "Clerk client not initialized."
-            logger.error("Clerk client not initialized during signUp.")
-            return
-        }
-        
-        // Prepare metadata dictionary to send to Clerk
-        // Using unsafeMetadata is often necessary during sign-up for arbitrary data
-        let metadataToSet: [String: String] = [
-            "oen": oen,
-            "schoolId": schoolID
-        ]
-        
-       
-        
-        logger.info("Preparing sign up with metadata: \(metadataToSet)")
-        let updateParams: SignUp.UpdateParams
-        
+
         do {
-
+            let params = SignUp.CreateParams(
+                firstName: firstName,
+                lastName: lastName,
+                password: password,
+                emailAddress: email
+            )
             
-            let signUp = try await SignUp.create(
-                    strategy: .standard(
-                        emailAddress: email,
-                        password: password,
-                        firstName: firstName,
-                        lastName: lastName))
-            
-            let encoder = JSONEncoder()
-            let jsonValue = try JSON(metadataToSet)
-            let updateParams = SignUp.UpdateParams(unsafeMetadata: jsonValue)
-
-            try await signUp.update(params: updateParams)
+            print("updated params: \(params)")
+           
+            var signUp = try await SignUp.create(params)
+            print("Sign up updated. Current unsafeMetadata from SDK object: \(signUp.unsafeMetadata ?? "nil")")
             try await signUp.prepareVerification(strategy: .emailCode)
             
             isVerifying = true
@@ -181,20 +146,16 @@ extension SignUpView {
                 return
             }
             
-            try await signUp.attemptVerification(strategy: .emailCode(code: code))
-            let apiService = APIService() // Create instance (or get from environment/DI later)
-            do {
-                let userProfile = try await apiService.fetchUserProfile()
-                // SUCCESS! Backend verified token and found/created user in DB.
-                logger.info("Successfully fetched profile from backend for user: \(userProfile.email)")
-                // TODO: Store userProfile in your app's state management
-                //       (e.g., update an @State variable, call a ViewModel function)
-                //       This data (role, schoolId, etc.) is now available.
-            } catch {
-                // Handle errors specifically from fetchUserProfile
-                logger.error("Failed to fetch user profile from backend: \(error.localizedDescription)")
-                errorMessage = "Login succeeded, but failed to sync profile. Please try again later."
-                dump(error) // Log detailed APIError
+            let result = try await signUp.attemptVerification(strategy: .emailCode(code: code))
+            
+            if result.status == .complete {
+                logger.info("Sign up verification successful and complete for \(email)")
+
+                try await clerk.setActive(sessionId: result.createdSessionId ?? "")
+                            
+                logger.info("Clerk session set successfully. RootView will handle next steps.")
+            } else {
+                errorMessage = "Verification might not be complete. Status: \(result.status)"
             }
         } catch {
             dump(error)

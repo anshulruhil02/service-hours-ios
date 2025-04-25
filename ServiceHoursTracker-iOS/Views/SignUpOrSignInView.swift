@@ -6,9 +6,11 @@
 //
 
 import SwiftUI
+import Clerk
 
 struct SignUpOrSignInView: View {
   @State private var isSignUp = true
+  @Environment(Clerk.self) private var clerk
 
   var body: some View {
     ScrollView {
