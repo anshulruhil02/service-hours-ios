@@ -25,7 +25,7 @@ struct CompleteUserProfileView: View {
     // Option 2: Use a Binding passed from the parent view
     // @Binding var isOnboardingComplete: Bool
     // Option 3: Use an @EnvironmentObject for app state
-    // @EnvironmentObject var appState: AppState
+     @EnvironmentObject var appState: AppStateManager
 
     // Instance of your API service
     // For better testability later, consider injecting this via initializer or environment
@@ -119,7 +119,7 @@ struct CompleteUserProfileView: View {
             // isOnboardingComplete = true
             
             // Option 3: Update global app state
-            // appState.completeOnboarding()
+            appState.profileCompletionSuccessful()
 
         } catch {
             logger.error("Profile update failed: \(error.localizedDescription)")

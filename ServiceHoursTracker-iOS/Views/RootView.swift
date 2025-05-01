@@ -24,12 +24,12 @@ struct RootView: View {
         case .needsProfileCompletion:
             CompleteUserProfileView()
                 // Pass AppStateManager if needed for signaling completion
-                // .environmentObject(appStateManager)
+                 .environmentObject(appStateManager)
         case .authenticated:
             // Replace with your main authenticated app view (e.g., TabView)
             ContentView()
                 // Pass AppStateManager if main view needs profile data
-                // .environmentObject(appStateManager)
+                 .environmentObject(appStateManager)
         case .error(let message):
             // Simple error view
             VStack {

@@ -227,6 +227,69 @@ class APIService {
             throw APIError.requestFailed(error)
         }
     }
+    
+    func submitHours(submissionData: CreateSubmissionDto) async throws -> SubmissionResponse {
+        guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
+        guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
+        
+        guard let url = URL(string: "\(baseURL)/submissions") else { throw APIError.invalidURL }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        let encoder = JSONEncoder()
+        
+        do {
+            request.httpBody = try encoder.encode(submissionData)
+        } catch {
+            throw APIError.encodingError(error)
+        }
+        
+        logger.info("Making POST request to \(url)")
+        
+        do {
+            let (data, respone) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = respone as? HTTPURLResponse else { throw APIError.invalidURL }
+            
+            guard httpResponse.statusCode == 201 else {
+                let responseBody = String(data: data, encoding: .utf8)
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                    logger.warning("API Error: Unauthorized (\(httpResponse.statusCode)) on POST to \(url.path). Body: \(responseBody ?? "N/A")")
+                    try? await Clerk.shared.signOut()
+                    throw APIError.unauthorized
+                } else {
+                    logger.error("API Error: Server returned status code \(httpResponse.statusCode) on PATCH to \(url.path). Body: \(responseBody ?? "N/A")")
+                    throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody)
+                }
+            }
+            
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            
+            do {
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    logger.debug("Raw JSON response string:\n\(jsonString)")
+                } else {
+                    logger.error("Could not convert response data to string.")
+                }
+                let createSubmission = try decoder.decode(SubmissionResponse.self, from: data)
+                logger.info("Successfully created submission: \(createSubmission.id)")
+                return createSubmission
+            } catch {
+                logger.error("API Error: Failed to decode POST response JSON from \(url.path) - \(error)")
+                throw APIError.decodingError(error)
+            }
+            
+        } catch let error as APIError {
+            throw error
+        }
+        catch {
+            logger.error("API Error: URLSession POST request failed for \(url.path) - \(error)")
+            throw APIError.requestFailed(error)        }
+    }
 }
 
 // Helper struct for handling empty responses if needed
