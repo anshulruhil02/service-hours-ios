@@ -107,7 +107,7 @@ struct SubmissionFormView: View {
         
         isLoading = true
         isError = false
-        
+        print("Date format before transformation \(submissionDate)")
         let dateString = isoDateFormatter.string(from: submissionDate)
         
         let submissionDTO = CreateSubmissionDto(
@@ -117,6 +117,7 @@ struct SubmissionFormView: View {
             description: description.isEmpty ? nil : description
         )
         
+        print("Date being sent to backend: \(dateString)")
         do {
             let createSubmission = try await apiService.submitHours(submissionData: submissionDTO)
             

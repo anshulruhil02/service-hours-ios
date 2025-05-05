@@ -21,9 +21,8 @@ struct SubmissionResponse: Codable, Identifiable {
      let hours: Double
      let submissionDate: Date // Decode as Date
      let description: String?
-     let status: String
-     let proofUrl: String?
      let createdAt: Date
      let updatedAt: Date
      let studentId: String
 }
+

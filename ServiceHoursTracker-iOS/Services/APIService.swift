@@ -72,7 +72,7 @@ class APIService {
             
             // 8. Decode the JSON response
             let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
+            decoder.dateDecodingStrategy = .formatted(APIService.iso8601Full)
             
             do {
                 let userProfile = try decoder.decode(UserProfile.self, from: data)
@@ -267,7 +267,7 @@ class APIService {
             }
             
             let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
+            decoder.dateDecodingStrategy = .formatted(APIService.iso8601Full)
             
             do {
                 if let jsonString = String(data: data, encoding: .utf8) {
@@ -288,8 +288,19 @@ class APIService {
         }
         catch {
             logger.error("API Error: URLSession POST request failed for \(url.path) - \(error)")
-            throw APIError.requestFailed(error)        }
+            throw APIError.requestFailed(error)
+        }
     }
+    // Inside APIService class
+    static let iso8601Full: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+
 }
 
 // Helper struct for handling empty responses if needed
@@ -306,3 +317,5 @@ enum APIError: Error {
     case noActiveSession
     case tokenUnavailable
 }
+
+
