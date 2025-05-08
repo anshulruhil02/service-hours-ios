@@ -17,6 +17,12 @@ struct SubmissionFormView: View {
     @State private var isLoading: Bool = false
     @State private var submissionStatusMessage: String?
     @State private var isError: Bool = false
+    @State var isSigning: Bool = false
+    @State var clearSignature: Bool = false
+    @State var signatureImage: UIImage? = nil
+    @State var signaturePDF: Data? = nil
+    @State var signaturePNGData: Data? = nil
+
     @Environment(\.dismiss) var dismiss
     
     // API Service instance (consider injecting later)
@@ -32,7 +38,7 @@ struct SubmissionFormView: View {
     
     var body: some View {
         NavigationView {
-            Form {
+            VStack {
                 Section("Submission details") {
                     TextField("Organization name", text: $orgName)
                     
@@ -52,6 +58,58 @@ struct SubmissionFormView: View {
                     }
                 }
                 
+                Section("Supervisor Signature") {
+                    VStack(alignment: .center) {
+                        ZStack(alignment: isSigning ? .bottomTrailing: .center) {
+                            SignatureViewContainer(clearSignature: $clearSignature, signatureImage: $signatureImage, pdfSignature: $signaturePDF, signaturePNGData: $signaturePNGData)
+                                .disabled(!isSigning)
+                                .frame(height: 197)
+                                .frame(maxWidth: .infinity)
+                                .background(.white)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.accentColor, lineWidth: 3)
+                                )
+                            if isSigning {
+                                Button(action: {
+                                    clearSignature = true
+                                }, label: {
+                                    HStack {
+                                        Text("Clear")
+                                            .font(.callout)
+                                            .foregroundColor(.black)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .frame(height: 28)
+                                    .background(
+                                        Capsule()
+                                            .fill(.green)
+                                    )
+                                })
+                                .offset(.init(width: -12, height: -12))
+                            } else {
+                                Button(action: {
+                                    isSigning = true
+                                }, label: {
+                                    VStack(alignment: .center, spacing: 0) {
+                                        Image(systemName: "pencil")
+                                            .resizable()
+                                            .foregroundColor(.black)
+                                            .frame(width: 20, height: 20)
+                                            .padding(8)
+                                        Text("Sign here")
+                                            .font(.footnote)
+                                            .foregroundColor(.gray)
+                                    }
+                                })
+                            }
+                        }
+                        .padding(.top, 16)
+                        .padding(.horizontal, 3)
+                    }
+                }
+                
+                
                 if let statusMessage = submissionStatusMessage {
                     Text(statusMessage)
                         .font(.caption)
@@ -61,7 +119,7 @@ struct SubmissionFormView: View {
                 
                 Section {
                     Button {
-                        Task { await  submitForm() }
+                        Task { await submitForm() }
                     } label: {
                         HStack {
                             Spacer()
@@ -97,9 +155,17 @@ struct SubmissionFormView: View {
             return
         }
         
+        // Ensure hours conversion is safe
         guard let hours = Double(hoursString) else {
             isError = true
             submissionStatusMessage = "Please fill in valid hours"
+            return
+        }
+        
+        // Ensure signature data exists
+        guard signaturePNGData != nil else {
+            submissionStatusMessage = "Signature is missing."
+            isError = true
             return
         }
         
@@ -107,8 +173,8 @@ struct SubmissionFormView: View {
         isError = false
         print("Date format before transformation \(submissionDate)")
         let dateString = isoDateFormatter.string(from: submissionDate)
-        
-        let submissionDTO = CreateSubmissionDto(
+
+        let initialSubmissionDTO = CreateSubmissionDto(
             orgName: orgName,
             hours: hours,
             submissionDate: dateString,
@@ -117,14 +183,44 @@ struct SubmissionFormView: View {
         
         print("Date being sent to backend: \(dateString)")
         do {
-            let createSubmission = try await apiService.submitHours(submissionData: submissionDTO)
+            // --- Step 1: Create initial submission record ---
+            logger.info("Step 1: Creating initial submission record...")
+            let createdSubmission = try await apiService.submitHours(submissionData: initialSubmissionDTO)
+            let submissionId = createdSubmission.id
+            logger.info("Step 1 Successful! Submission ID: \(submissionId)")
+            submissionStatusMessage = "Record created, preparing signature upload..."
             
-            logger.info("Submission successful! ID: \(createSubmission.id)")
-            submissionStatusMessage = "Hours submitted successfully!"
+            // --- Step 2: Get S3 upload URL ---
+            logger.info("Step 2: Getting signature upload URL...")
+            let uploadInfo = try await apiService.getSignatureUploadUrl(submissionId: submissionId)
+            logger.info("Step 2 Successful! Got S3 key: \(uploadInfo.key)")
+            submissionStatusMessage = "Uploading signature..."
+            
+            guard let signaturePNG = signaturePNGData else {
+                logger.error("Signature not found!")
+                return
+            }
+            print("Data count BEFORE passing to APIService: \(signaturePNG.count) bytes")
+
+            // --- Step 3: Upload signature to S3 ---
+            logger.info("Step 3: Uploading signature data to S3...")
+            try await apiService.uploadSignatureToS3(uploadUrl: uploadInfo.uploadUrl, imageData: signaturePNG)
+            logger.info("Step 3 Successful! Signature uploaded.")
+            submissionStatusMessage = "Saving signature reference..."
+            
+            // --- Step 4: Save S3 key reference to backend ---
+            logger.info("Step 4: Saving signature reference to backend...")
+            _ = try await apiService.saveSignatureReference(submissionId: submissionId, signatureKey: uploadInfo.key)
+            logger.info("Step 4 Successful! Signature reference saved.")
+            
+            // --- Final Success ---
+            submissionStatusMessage = "Submission complete!"
             isError = false
             
-            clearForm()
-            dismiss()
+            // Wait briefly so user sees success message, then dismiss
+            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+            dismiss() // Dismiss the sheet
+            
         } catch {
             logger.error("Submission failed: \(error.localizedDescription)")
             if let apiError = error as? APIError {
@@ -132,6 +228,8 @@ struct SubmissionFormView: View {
                 case .unauthorized: submissionStatusMessage = "Authentication error. Please sign out and try again."
                 case .serverError(_, let msg): submissionStatusMessage = "Server error: \(msg ?? "Please try again.")"
                 case .requestFailed: submissionStatusMessage = "Network error. Please check connection."
+                case .s3UploadFailed: submissionStatusMessage = "Failed to upload signature. Please try again."
+
                 default: submissionStatusMessage = "Could not submit hours. Please try again."
                 }
             } else {
@@ -147,10 +245,7 @@ struct SubmissionFormView: View {
         hoursString = ""
         submissionDate = Date() // Reset to today
         description = ""
+        signatureImage = nil
+        signaturePNGData = nil
     }
 }
-
-#Preview {
-    SubmissionFormView()
-}
-

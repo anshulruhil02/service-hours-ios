@@ -116,10 +116,7 @@ struct HomeView: View {
                     }
                 }
             }
-            // Modal Sheet Presentation for the Submission Form
-            // This sheet appears when viewModel.showingSubmitSheet becomes true
-            .sheet(isPresented: $viewModel.showingSubmitSheet) {
-                // The view presented modally
+            .navigationDestination(isPresented: $viewModel.showingSubmitSheet) {
                 SubmissionFormView()
                 // Code to run when the sheet is dismissed (e.g., user cancels or submits)
                  .onDisappear {
@@ -129,6 +126,7 @@ struct HomeView: View {
                       Task { await viewModel.fetchUserSubmissions() }
                  }
             }
+            
             // Fetch initial data when the view first appears
             .task {
                 if viewModel.submissions.isEmpty {
@@ -145,11 +143,11 @@ struct HomeView: View {
             return
         }
         
-        let tokenOptions = Session.GetTokenOptions(template: "anshultest")
+        let tokenOptions = Session.GetTokenOptions(template: "test23")
         
         do {
             let catchToken = try  await session.getToken(tokenOptions)
-            print("Token: \(catchToken?.jwt)")
+            print("Token: \(String(describing: catchToken?.jwt))")
         } catch {
             print("error trying to fetch token: \(error)")
         }

@@ -26,3 +26,6 @@ struct SubmissionResponse: Codable, Identifiable {
      let studentId: String
 }
 
+struct SaveSignatureDto: Codable {
+    let signatureKey: String
+}
