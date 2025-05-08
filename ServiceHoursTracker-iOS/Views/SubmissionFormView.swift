@@ -17,8 +17,6 @@ struct SubmissionFormView: View {
     @State private var isLoading: Bool = false
     @State private var submissionStatusMessage: String?
     @State private var isError: Bool = false
-    
-    // Environment for dismissing the view if presented modally
     @Environment(\.dismiss) var dismiss
     
     // API Service instance (consider injecting later)
@@ -125,8 +123,8 @@ struct SubmissionFormView: View {
             submissionStatusMessage = "Hours submitted successfully!"
             isError = false
             
-            // Clear the form after successful submission
             clearForm()
+            dismiss()
         } catch {
             logger.error("Submission failed: \(error.localizedDescription)")
             if let apiError = error as? APIError {

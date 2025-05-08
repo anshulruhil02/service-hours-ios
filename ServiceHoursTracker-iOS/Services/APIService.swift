@@ -91,6 +91,47 @@ class APIService {
         }
     }
     
+    func fetchSubmissions() async throws -> [SubmissionResponse] {
+        guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
+        guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
+        
+        guard let url = URL(string: "\(baseURL)/submissions") else { throw APIError.invalidURL }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        logger.info("Making request to \(url)")
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+            logger.info("Received status code: \(httpResponse.statusCode)")
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                // Handle errors (401, 403, 500 etc.)
+                let responseBody = String(data: data, encoding: .utf8)
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 { throw APIError.unauthorized }
+                else { throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody) }
+            }
+            
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .formatted(APIService.iso8601Full)
+            
+            do {
+                let submissions = try decoder.decode([SubmissionResponse].self, from: data)
+                logger.info("Successfully fetched \(submissions.count) submissions.")
+                return submissions
+            } catch {
+                logger.error("API Error: URLSession request failed - \(error)")
+                throw APIError.requestFailed(error)
+            }
+        } catch let error as APIError {
+            throw error
+        }
+    }
+    
     func post<T: Encodable, R: Decodable>(path: String, body: T, responseType: R.Type) async throws -> R {
         
         // 1. Get Token

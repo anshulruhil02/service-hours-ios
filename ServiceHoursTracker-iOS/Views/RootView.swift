@@ -27,7 +27,7 @@ struct RootView: View {
                  .environmentObject(appStateManager)
         case .authenticated:
             // Replace with your main authenticated app view (e.g., TabView)
-            ContentView()
+            HomeView()
                 // Pass AppStateManager if main view needs profile data
                  .environmentObject(appStateManager)
         case .error(let message):
