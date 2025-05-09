@@ -13,10 +13,16 @@ struct SubmissionDetailView: View {
     // Input property: The submission whose details we want to display
     let submission: SubmissionResponse
     private let apiService = APIService()
-    // State for the signature URL and loading status
-    @State private var signatureViewUrl: URL? = nil
-    @State private var isLoadingSignature: Bool = false
-    @State private var signatureError: String? = nil
+    
+    // States for the Supervisor signature URL and loading status
+    @State private var supervisorSignatureViewUrl: URL? = nil
+    @State private var supervisorIsLoadingSignature: Bool = false
+    @State private var supervisorSignatureError: String? = nil
+
+    // States for the Pre Approved signature URL and loading status
+    @State private var preApprovedSignatureViewUrl: URL? = nil
+    @State private var preApprovedIsLoadingSignature: Bool = false
+    @State private var preApprovedSignatureError: String? = nil
 
     
     // Logger instance (optional)
@@ -90,59 +96,119 @@ struct SubmissionDetailView: View {
                      .foregroundStyle(.secondary)
             }
             
-            Section("Supervisor Signature") {
-                // Conditional UI based on loading state and URL availability
-                if isLoadingSignature {
-                    HStack { // Center the ProgressView
-                        Spacer()
-                        ProgressView("Loading Signature...")
-                        Spacer()
-                    }
-                    .frame(height: 150) // Give space while loading
-                } else if let url = signatureViewUrl {
-                    // Use AsyncImage to load from the temporary S3 URL
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .empty:
-                            ProgressView() // Placeholder while image downloads
-                                .frame(height: 150)
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxHeight: 150) // Limit display height
-                                .border(Color.secondary) // Add a border
-                        case .failure(let error):
-                            // Display error if image loading fails
-                            VStack {
-                                Image(systemName: "photo.fill") // Placeholder icon
-                                    .foregroundColor(.orange)
-                                Text("Could not load signature image.")
-                                    .font(.caption)
-                                Text(error.localizedDescription)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+            Section("Signatures") {
+                HStack{
+                    Group{
+                        // Conditional UI based on loading state and URL availability
+                        if supervisorIsLoadingSignature {
+                            HStack { // Center the ProgressView
+                                Spacer()
+                                ProgressView("Loading Signature...")
+                                Spacer()
                             }
-                        @unknown default:
-                            EmptyView() // Handle future cases
+                            .frame(height: 150) // Give space while loading
+                        } else if let url = supervisorSignatureViewUrl {
+                            // Use AsyncImage to load from the temporary S3 URL
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView() // Placeholder while image downloads
+                                        .frame(height: 150)
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(maxHeight: 150) // Limit display height
+                                        .border(Color.secondary) // Add a border
+                                case .failure(let error):
+                                    // Display error if image loading fails
+                                    VStack {
+                                        Image(systemName: "photo.fill") // Placeholder icon
+                                            .foregroundColor(.orange)
+                                        Text("Could not load signature image.")
+                                            .font(.caption)
+                                        Text(error.localizedDescription)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                @unknown default:
+                                    EmptyView() // Handle future cases
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical)
+                        } else if let errorMsg = supervisorSignatureError {
+                            // Display error if fetching the URL failed
+                            Text("Error loading signature: \(errorMsg)")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical)
+                        }
+                        else {
+                            // Display if no signature URL was stored or returned by backend
+                            Text("No signature attached.")
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical)
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical)
-                } else if let errorMsg = signatureError {
-                    // Display error if fetching the URL failed
-                    Text("Error loading signature: \(errorMsg)")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical)
-                }
-                else {
-                    // Display if no signature URL was stored or returned by backend
-                    Text("No signature attached.")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical)
+                    
+                    Group{
+                        // Conditional UI based on loading state and URL availability
+                        if preApprovedIsLoadingSignature {
+                            HStack { // Center the ProgressView
+                                Spacer()
+                                ProgressView("Loading Signature...")
+                                Spacer()
+                            }
+                            .frame(height: 150) // Give space while loading
+                        } else if let url = preApprovedSignatureViewUrl {
+                            // Use AsyncImage to load from the temporary S3 URL
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView() // Placeholder while image downloads
+                                        .frame(height: 150)
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(maxHeight: 150) // Limit display height
+                                        .border(Color.secondary) // Add a border
+                                case .failure(let error):
+                                    // Display error if image loading fails
+                                    VStack {
+                                        Image(systemName: "photo.fill") // Placeholder icon
+                                            .foregroundColor(.orange)
+                                        Text("Could not load signature image.")
+                                            .font(.caption)
+                                        Text(error.localizedDescription)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                @unknown default:
+                                    EmptyView() // Handle future cases
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical)
+                        } else if let errorMsg = preApprovedSignatureError {
+                            // Display error if fetching the URL failed
+                            Text("Error loading signature: \(errorMsg)")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical)
+                        }
+                        else {
+                            // Display if no signature URL was stored or returned by backend
+                            Text("No signature attached.")
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical)
+                        }
+                    }
                 }
             } // End
             
@@ -150,48 +216,71 @@ struct SubmissionDetailView: View {
         .navigationTitle("Submission Details") // Title for this screen
         .navigationBarTitleDisplayMode(.inline) // Keep title small
         .task {
-            if signatureViewUrl == nil && !isLoadingSignature && signatureError == nil {
-                await loadSignatureUrl()
+            if supervisorSignatureViewUrl == nil && !supervisorIsLoadingSignature && supervisorSignatureError == nil {
+                await loadSupervisorSignatureUrl()
+            }
+            
+            if preApprovedSignatureViewUrl == nil && !preApprovedIsLoadingSignature && preApprovedSignatureError == nil {
+                await loadPreApprovedSignatureUrl()
             }
         }
         
         
     }
     
-     // Helper function to determine status color (copied from SubmissionRow)
-//     func statusColor(_ status: String) -> Color {
-//         switch status.lowercased() {
-//             case "approved": return .green
-//             case "rejected": return .red
-//             default: return .orange // pending
-//         }
-//     }
-    func loadSignatureUrl() async {
-             isLoadingSignature = true
-             signatureError = nil
-             logger.info("Fetching signature view URL for submission \(submission.id)")
-             
-             do {
-                 let result = try await apiService.getSignatureViewUrl(submissionId: submission.id)
-                 print("Dignature fetching result: \(String(describing: result))")
-                 signatureViewUrl = result // This might be nil if backend returns null
-                 if signatureViewUrl == nil {
-                      logger.info("Backend confirmed no viewable signature URL for submission \(submission.id)")
-                 } else {
-                      logger.info("Successfully got signature view URL.")
-                 }
-             } catch let error as APIError {
-                 logger.error("Failed to fetch signature view URL: \(error)")
-                 signatureError = "Could not load signature (\(error.localizedDescription))."
-                 dump(error)
-             } catch {
-                 logger.error("Unexpected error fetching signature view URL: \(error)")
-                 signatureError = "An unexpected error occurred."
-                 dump(error)
-             }
-             
-             isLoadingSignature = false
-         }
+    func loadSupervisorSignatureUrl() async {
+        supervisorIsLoadingSignature = true
+        supervisorSignatureError = nil
+        logger.info("Fetching signature view URL for submission \(submission.id)")
+        
+        do {
+            let result = try await apiService.getSupervisorSignatureViewUrl(submissionId: submission.id)
+            print("Dignature fetching result: \(String(describing: result))")
+            supervisorSignatureViewUrl = result // This might be nil if backend returns null
+            if supervisorSignatureViewUrl == nil {
+                logger.info("Backend confirmed no viewable signature URL for submission \(submission.id)")
+            } else {
+                logger.info("Successfully got signature view URL.")
+            }
+        } catch let error as APIError {
+            logger.error("Failed to fetch signature view URL: \(error)")
+            supervisorSignatureError = "Could not load signature (\(error.localizedDescription))."
+            dump(error)
+        } catch {
+            logger.error("Unexpected error fetching signature view URL: \(error)")
+            supervisorSignatureError = "An unexpected error occurred."
+            dump(error)
+        }
+        
+        supervisorIsLoadingSignature = false
+    }
+    
+    func loadPreApprovedSignatureUrl() async {
+        preApprovedIsLoadingSignature = true
+        preApprovedSignatureError = nil
+        logger.info("Fetching signature view URL for submission \(submission.id)")
+        
+        do {
+            let result = try await apiService.getPreApprovedSignatureViewUrl(submissionId: submission.id)
+            print("Dignature fetching result: \(String(describing: result))")
+            preApprovedSignatureViewUrl = result // This might be nil if backend returns null
+            if preApprovedSignatureViewUrl == nil {
+                logger.info("Backend confirmed no viewable signature URL for submission \(submission.id)")
+            } else {
+                logger.info("Successfully got signature view URL.")
+            }
+        } catch let error as APIError {
+            logger.error("Failed to fetch signature view URL: \(error)")
+            preApprovedSignatureError = "Could not load signature (\(error.localizedDescription))."
+            dump(error)
+        } catch {
+            logger.error("Unexpected error fetching signature view URL: \(error)")
+            preApprovedSignatureError = "An unexpected error occurred."
+            dump(error)
+        }
+        
+        preApprovedIsLoadingSignature = false
+    }
 }
 
 // --- Reusable Helper View for Label/Value Rows ---

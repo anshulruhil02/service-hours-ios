@@ -17,12 +17,21 @@ struct SubmissionFormView: View {
     @State private var isLoading: Bool = false
     @State private var submissionStatusMessage: String?
     @State private var isError: Bool = false
-    @State var isSigning: Bool = false
-    @State var clearSignature: Bool = false
-    @State var signatureImage: UIImage? = nil
-    @State var signaturePDF: Data? = nil
-    @State var signaturePNGData: Data? = nil
+    
+    // states dealing with supervisor's signature
+    @State var isSupervisorSigning: Bool = false
+    @State var clearSupervisorSignature: Bool = false
+    @State var supervisorSignatureImage: UIImage? = nil
+    @State var supervisorSignaturePDF: Data? = nil
+    @State var supervisorSignaturePNGData: Data? = nil
 
+    // states dealing with Pre Approved Signatures
+    @State var isPreApprovedSigning: Bool = false
+    @State var clearPreApprovedSignature: Bool = false
+    @State var preApprovedSignatureImage: UIImage? = nil
+    @State var preAppriovedSignaturePDF: Data? = nil
+    @State var preApprovedSignaturePNGData: Data? = nil
+    
     @Environment(\.dismiss) var dismiss
     
     // API Service instance (consider injecting later)
@@ -58,55 +67,108 @@ struct SubmissionFormView: View {
                     }
                 }
                 
-                Section("Supervisor Signature") {
-                    VStack(alignment: .center) {
-                        ZStack(alignment: isSigning ? .bottomTrailing: .center) {
-                            SignatureViewContainer(clearSignature: $clearSignature, signatureImage: $signatureImage, pdfSignature: $signaturePDF, signaturePNGData: $signaturePNGData)
-                                .disabled(!isSigning)
-                                .frame(height: 197)
-                                .frame(maxWidth: .infinity)
-                                .background(.white)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.accentColor, lineWidth: 3)
-                                )
-                            if isSigning {
-                                Button(action: {
-                                    clearSignature = true
-                                }, label: {
-                                    HStack {
-                                        Text("Clear")
-                                            .font(.callout)
-                                            .foregroundColor(.black)
-                                    }
-                                    .padding(.horizontal, 12)
-                                    .frame(height: 28)
-                                    .background(
-                                        Capsule()
-                                            .fill(.green)
+                Section("Signatures") {
+                    HStack {
+                        VStack(alignment: .center) {
+                            ZStack(alignment: isSupervisorSigning ? .bottomTrailing: .center) {
+                                SignatureViewContainer(clearSignature: $clearSupervisorSignature, signatureImage: $supervisorSignatureImage, pdfSignature: $supervisorSignaturePDF, signaturePNGData: $supervisorSignaturePNGData)
+                                    .disabled(!isSupervisorSigning)
+                                    .frame(height: 197)
+                                    .frame(maxWidth: .infinity)
+                                    .background(.white)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.accentColor, lineWidth: 3)
                                     )
-                                })
-                                .offset(.init(width: -12, height: -12))
-                            } else {
-                                Button(action: {
-                                    isSigning = true
-                                }, label: {
-                                    VStack(alignment: .center, spacing: 0) {
-                                        Image(systemName: "pencil")
-                                            .resizable()
-                                            .foregroundColor(.black)
-                                            .frame(width: 20, height: 20)
-                                            .padding(8)
-                                        Text("Sign here")
-                                            .font(.footnote)
-                                            .foregroundColor(.gray)
-                                    }
-                                })
+                                if isSupervisorSigning {
+                                    Button(action: {
+                                        clearSupervisorSignature = true
+                                    }, label: {
+                                        HStack {
+                                            Text("Clear")
+                                                .font(.callout)
+                                                .foregroundColor(.black)
+                                        }
+                                        .padding(.horizontal, 12)
+                                        .frame(height: 28)
+                                        .background(
+                                            Capsule()
+                                                .fill(.green)
+                                        )
+                                    })
+                                    .offset(.init(width: -12, height: -12))
+                                } else {
+                                    Button(action: {
+                                        isSupervisorSigning = true
+                                    }, label: {
+                                        VStack(alignment: .center, spacing: 0) {
+                                            Image(systemName: "pencil")
+                                                .resizable()
+                                                .foregroundColor(.black)
+                                                .frame(width: 20, height: 20)
+                                                .padding(8)
+                                            Text("Sign here")
+                                                .font(.footnote)
+                                                .foregroundColor(.gray)
+                                        }
+                                    })
+                                }
                             }
+                            .padding(.top, 16)
+                            .padding(.horizontal, 3)
                         }
-                        .padding(.top, 16)
-                        .padding(.horizontal, 3)
+                        
+                        VStack(alignment: .center) {
+                            ZStack(alignment: isPreApprovedSigning ? .bottomTrailing: .center) {
+                                SignatureViewContainer(clearSignature: $clearPreApprovedSignature, signatureImage: $preApprovedSignatureImage, pdfSignature: $preAppriovedSignaturePDF, signaturePNGData: $preApprovedSignaturePNGData)
+                                    .disabled(!isPreApprovedSigning)
+                                    .frame(height: 197)
+                                    .frame(maxWidth: .infinity)
+                                    .background(.white)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.accentColor, lineWidth: 3)
+                                    )
+                                if isPreApprovedSigning {
+                                    Button(action: {
+                                        clearPreApprovedSignature = true
+                                    }, label: {
+                                        HStack {
+                                            Text("Clear")
+                                                .font(.callout)
+                                                .foregroundColor(.black)
+                                        }
+                                        .padding(.horizontal, 12)
+                                        .frame(height: 28)
+                                        .background(
+                                            Capsule()
+                                                .fill(.green)
+                                        )
+                                    })
+                                    .offset(.init(width: -12, height: -12))
+                                } else {
+                                    Button(action: {
+                                        isPreApprovedSigning = true
+                                    }, label: {
+                                        VStack(alignment: .center, spacing: 0) {
+                                            Image(systemName: "pencil")
+                                                .resizable()
+                                                .foregroundColor(.black)
+                                                .frame(width: 20, height: 20)
+                                                .padding(8)
+                                            Text("Sign here")
+                                                .font(.footnote)
+                                                .foregroundColor(.gray)
+                                        }
+                                    })
+                                }
+                            }
+                            .padding(.top, 16)
+                            .padding(.horizontal, 3)
+                        }
                     }
+                    
+                    
                 }
                 
                 
@@ -162,9 +224,14 @@ struct SubmissionFormView: View {
             return
         }
         
-        // Ensure signature data exists
-        guard signaturePNGData != nil else {
-            submissionStatusMessage = "Signature is missing."
+        guard supervisorSignaturePNGData != nil else {
+            submissionStatusMessage = "Supervisor Signature is missing."
+            isError = true
+            return
+        }
+        
+        guard preApprovedSignaturePNGData != nil else {
+            submissionStatusMessage = "Pre Approved Signature is missing."
             isError = true
             return
         }
@@ -191,26 +258,52 @@ struct SubmissionFormView: View {
             submissionStatusMessage = "Record created, preparing signature upload..."
             
             // --- Step 2: Get S3 upload URL ---
-            logger.info("Step 2: Getting signature upload URL...")
-            let uploadInfo = try await apiService.getSignatureUploadUrl(submissionId: submissionId)
-            logger.info("Step 2 Successful! Got S3 key: \(uploadInfo.key)")
-            submissionStatusMessage = "Uploading signature..."
+            logger.info("Step 2: Getting Supervisor signature upload URL...")
+            let supervisorUploadInfo = try await apiService.getSupervisorSignatureUploadUrl(submissionId: submissionId)
+            logger.info("Step 2 Successful! Got S3 key: \(supervisorUploadInfo.key)")
+            submissionStatusMessage = "Uploading Supervisor signature..."
             
-            guard let signaturePNG = signaturePNGData else {
-                logger.error("Signature not found!")
+            guard let supervisorSignaturePNG = supervisorSignaturePNGData else {
+                logger.error("Supervisor Signature not found!")
                 return
             }
-            print("Data count BEFORE passing to APIService: \(signaturePNG.count) bytes")
+        
+            print("Data count of Supervisor BEFORE passing to APIService: \(supervisorSignaturePNG.count) bytes")
 
             // --- Step 3: Upload signature to S3 ---
-            logger.info("Step 3: Uploading signature data to S3...")
-            try await apiService.uploadSignatureToS3(uploadUrl: uploadInfo.uploadUrl, imageData: signaturePNG)
-            logger.info("Step 3 Successful! Signature uploaded.")
-            submissionStatusMessage = "Saving signature reference..."
+            logger.info("Step 3: Uploading Supervisor signature data to S3...")
+            try await apiService.uploadSupervisorSignatureToS3(uploadUrl: supervisorUploadInfo.uploadUrl, imageData: supervisorSignaturePNG)
+            logger.info("Step 3 Successful! Supervisor Signature uploaded.")
+            submissionStatusMessage = "Saving Supervisor signature reference..."
             
             // --- Step 4: Save S3 key reference to backend ---
             logger.info("Step 4: Saving signature reference to backend...")
-            _ = try await apiService.saveSignatureReference(submissionId: submissionId, signatureKey: uploadInfo.key)
+            _ = try await apiService.saveSupervisorSignatureReference(submissionId: submissionId, signatureKey: supervisorUploadInfo.key)
+            logger.info("Step 4 Successful! Signature reference saved.")
+            
+            
+            // --- Step 2: Get S3 upload URL ---
+            logger.info("Step 2: Getting Pre Approved signature upload URL...")
+            let preApprovedIploadInfo = try await apiService.getPreApprovedSignatureUploadUrl(submissionId: submissionId)
+            logger.info("Step 2 Successful! Got S3 key: \(preApprovedIploadInfo.key)")
+            submissionStatusMessage = "Uploading Pre Approved signature..."
+            
+            guard let preApprovedSignaturePNG = preApprovedSignaturePNGData else {
+                logger.error("Pre Approved Signature not found!")
+                return
+            }
+        
+            print("Data count of Pre Approved BEFORE passing to APIService: \(preApprovedSignaturePNG.count) bytes")
+
+            // --- Step 3: Upload signature to S3 ---
+            logger.info("Step 3: Uploading Pre Approved signature data to S3...")
+            try await apiService.uploadPreApprovedSignatureToS3(uploadUrl: preApprovedIploadInfo.uploadUrl, imageData: preApprovedSignaturePNG)
+            logger.info("Step 3 Successful! Pre Approved Signature uploaded.")
+            submissionStatusMessage = "Saving Pre Approved signature reference..."
+            
+            // --- Step 4: Save S3 key reference to backend ---
+            logger.info("Step 4: Saving signature reference to backend...")
+            _ = try await apiService.savePreApprovedSignatureReference(submissionId: submissionId, signatureKey: preApprovedIploadInfo.key)
             logger.info("Step 4 Successful! Signature reference saved.")
             
             // --- Final Success ---
@@ -240,12 +333,12 @@ struct SubmissionFormView: View {
         }
     }
     
-    private func clearForm() {
-        orgName = ""
-        hoursString = ""
-        submissionDate = Date() // Reset to today
-        description = ""
-        signatureImage = nil
-        signaturePNGData = nil
-    }
+//    private func clearForm() {
+//        orgName = ""
+//        hoursString = ""
+//        submissionDate = Date() // Reset to today
+//        description = ""
+//        signatureImage = nil
+//        signaturePNGData = nil
+//    }
 }
