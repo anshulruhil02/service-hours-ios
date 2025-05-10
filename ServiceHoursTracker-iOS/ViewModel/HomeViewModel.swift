@@ -12,6 +12,8 @@ import os.log
 @MainActor
 class HomeViewModel: ObservableObject {
     @Published var submissions: [SubmissionResponse] = []
+    @Published var completeSubmissions: [SubmissionResponse] = []
+    @Published var incompleteSubmissions: [SubmissionResponse] = []
     @Published var showingSubmitSheet: Bool = false
     @Published var isLoading: Bool = true
     @Published var errorMessage: String?
@@ -23,6 +25,10 @@ class HomeViewModel: ObservableObject {
             print("inside the viewModel's fetch function")
             let fetchedSubmissions = try await apiService.fetchSubmissions()
             self.submissions = fetchedSubmissions
+            self.completeSubmissions = submissions.filter { $0.status == "SUBMITTED" }
+            self.incompleteSubmissions = submissions.filter { $0.status == "DRAFT" }
+            print("Complete submissions: \(completeSubmissions)")
+            print("Incomplete submissions: \(incompleteSubmissions)")
             logger.info("Successfully fetched \(fetchedSubmissions.count) submissions from API.")
         } catch let error as APIError {
             switch error {

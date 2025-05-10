@@ -6,6 +6,14 @@ import os.log
 
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
+    @State private var selectedTab: TabIdentifier = .completeSubmissions
+    private var screenWidth: CGFloat {
+        UIScreen.main.bounds.width
+    }
+    private var menuWidth: CGFloat {
+        0.75 * screenWidth
+    }
+    @State private var isMenuOpen: Bool = false
     
     // Access Clerk from the environment to allow signing out
     @Environment(Clerk.self) private var clerk
@@ -16,98 +24,35 @@ struct HomeView: View {
         ZStack {
             DSColor.backgroundPrimary.ignoresSafeArea()
             NavigationStack {
-                VStack {
-                    // Conditional content based on the ViewModel's state
-                    if viewModel.isLoading && viewModel.submissions.isEmpty {
-                        // Show a loading indicator only when fetching initial data
-                        ProgressView("Loading your hours...")
-                            .foregroundStyle(DSColor.textSecondary)
-                            .tint(DSColor.accent)
-                            .padding(.top, 50) // Add some padding
-                        Spacer() // Push indicator up
-                    } else if let errorMessage = viewModel.errorMessage {
-                        // Display an error message if fetching failed
-                        VStack(spacing: 15) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.largeTitle)
-                                .foregroundStyle(DSColor.statusWarning)
-                            Text("Error Loading Data")
-                                .font(.headline)
-                                .foregroundStyle(DSColor.textPrimary)
-                            Text(errorMessage)
-                                .font(.caption) // Consider DSFont.caption
-                                .multilineTextAlignment(.center)
-                                .foregroundStyle(DSColor.textSecondary)
-                                .padding(.horizontal)
-                            Button("Retry") {
-                                Task { await viewModel.fetchUserSubmissions() } // Allow user to retry
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(DSColor.accent)
-                            .padding(.top)
-                            Spacer() // Push error message up
+                TabView(selection: $selectedTab){
+                    CompleteSubmissonsView(viewModel: viewModel)
+                        .tabItem {
+                            Label("Complete Submissions", systemImage: "checkmark.seal.text.page")
                         }
-                        .padding()
-                    } else {
-                        VStack {
-                            //                         --- Button to Get Test Token ---
-                            //                        Button("Get Test Token for Postman") {
-                            //                            Task {
-                            //                                await getAndPrintTestToken()
-                            //                            }
-                            //                        }
-                            //                        .buttonStyle(.bordered)
-                            List {
-                                if viewModel.submissions.isEmpty {
-                                    // Message shown when the list is empty
-                                    Text("No submissions logged yet.\nTap the '+' button to add your first entry.")
-                                        .foregroundStyle(DSColor.textSecondary)
-                                        .multilineTextAlignment(.center)
-                                        .frame(maxWidth: .infinity, alignment: .center)
-                                        .padding(.vertical, 50)
-                                        .listRowSeparator(.hidden)
-                                } else {
-                                    // Loop through the fetched submissions from the ViewModel
-                                    ForEach(viewModel.submissions) { submission in
-                                        // Each row is a NavigationLink to the detail view
-                                        NavigationLink {
-                                            SubmissionDetailView(submission: submission)
-                                        } label: {
-                                            SubmissionRow(submission: submission)
-                                        }
-                                    }
-                                }
-                            }
-                            .listStyle(.plain) // Use plain style for the list
-//                            .background(DSColor.backgroundPrimary)
-//                            .scrollContentBackground(.hidden)
-                            .refreshable {
-                                logger.info("Pull to refresh triggered.")
-                                await viewModel.fetchUserSubmissions() // Call fetch method on refresh
-                            }
+                        .tag(TabIdentifier.completeSubmissions)
+                    
+                    IncompleteSubmissionsView(viewModel: viewModel)
+                        .tabItem {
+                            Label("Incopmlete Submissions", systemImage: "chart.line.text.clipboard")
                         }
-                    }
+                        .tag(TabIdentifier.incompleteSubmissions)
                 }
                 .navigationTitle("My Hours") // Set the title displayed in the navigation bar
                 // Add buttons to the navigation bar's toolbar
+//                .onTapGesture {
+//                    withAnimation(.easeInOut) {
+//                        isMenuOpen = false
+//                    }
+//                }
                 .toolbar {
-                    // Top Left "Sign Out" Button
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button {
-                            // Sign out asynchronously when tapped
-                            Task {
-                                do {
-                                    try await clerk.signOut()
-                                    logger.info("User signed out via button.")
-                                    // The RootView's .onChange observer will handle navigation
-                                } catch {
-                                    logger.error("Sign out error: \(error.localizedDescription)")
-                                    // Optionally show an alert for sign out errors
-                                }
+                            withAnimation(.easeInOut) { // Add animation for menu toggle
+                                isMenuOpen.toggle()
                             }
                         } label: {
-                            // Use Text or an Image for the button
-                            Text("Sign Out").foregroundStyle(.red)
+                            Image(systemName: "line.3.horizontal")
+                                .foregroundStyle(DSColor.accent)
                         }
                     }
                     
@@ -124,11 +69,8 @@ struct HomeView: View {
                 }
                 .navigationDestination(isPresented: $viewModel.showingSubmitSheet) {
                     SubmissionFormView()
-                    // Code to run when the sheet is dismissed (e.g., user cancels or submits)
                         .onDisappear {
                             logger.info("SubmissionFormView sheet dismissed.")
-                            // Re-fetch submissions when the sheet closes to ensure
-                            // the list is up-to-date if a new submission was added.
                             Task { await viewModel.fetchUserSubmissions() }
                         }
                 }
@@ -140,26 +82,42 @@ struct HomeView: View {
                         await viewModel.fetchUserSubmissions()
                     }
                 }
+                
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity) // Ensure it fills space
+            .background(DSColor.backgroundPrimary.ignoresSafeArea()) // Background for the main content area
+            .offset(x: isMenuOpen ? menuWidth * 0.3 : 0) // Optional: Slight push effect for main content
+            .disabled(isMenuOpen) // Disable main content interaction when menu is open
+            .zIndex(0) // Main content is at the base
+            
+            // Layer 2: Dimming Overlay (Only appears when menu is open)
+            if isMenuOpen {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle()) // Ensure the whole area is tappable
+                    .onTapGesture {
+                        withAnimation(.easeInOut) {
+                            isMenuOpen = false
+                        }
+                    }
+                    .zIndex(1) // Above main content, below menu
+            }
+            HStack {
+                MenuView()
+                    .frame(width: menuWidth)
+                // Slide in/out
+                Spacer() // Pushes menu to the left
+            }
+            .offset(x: isMenuOpen ? 0 : -menuWidth)
+            .allowsHitTesting(isMenuOpen)
+            .ignoresSafeArea(.all, edges: .vertical)
         }
     }
-    
-    //    func getAndPrintTestToken() async {
-    //        guard let session = clerk.session else {
-    //            print("Error with session fetch... :(")
-    //            return
-    //        }
-    //
-    //        let tokenOptions = Session.GetTokenOptions(template: "test23")
-    //
-    //        do {
-    //            let catchToken = try  await session.getToken(tokenOptions)
-    //            print("Token: \(String(describing: catchToken?.jwt))")
-    //        } catch {
-    //            print("error trying to fetch token: \(error)")
-    //        }
-    //    }
-    
+}
+
+enum TabIdentifier {
+    case completeSubmissions
+    case incompleteSubmissions
 }
 
 struct SubmissionRow: View {
@@ -176,7 +134,7 @@ struct SubmissionRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(submission.orgName)
+                Text(submission.orgName ?? "Organization name not provided")
                     .foregroundStyle(DSColor.textPrimary)
                     .font(.headline)
                     .lineLimit(1)
@@ -187,7 +145,7 @@ struct SubmissionRow: View {
             Spacer() // Pushes hours and status to the right
             
             VStack(alignment: .trailing) {
-                Text("\(submission.hours, specifier: "%.1f") hrs") // Format to 1 decimal place
+                Text("\(submission.hours ?? 0, specifier: "%.1f") hrs") // Format to 1 decimal place
                     .font(.headline)
                     .fontWeight(.medium)
                     .foregroundStyle(DSColor.textPrimary)

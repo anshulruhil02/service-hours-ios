@@ -128,27 +128,53 @@ struct SubmissionFormView: View {
                     }
                     
                     Section {
-                        Button {
-                            Task { await submitForm() }
-                        } label: {
-                            HStack {
-                                Spacer()
-                                if isLoading {
-                                    ProgressView()
-                                } else {
-                                    Text("Submit Hours")
-                                        .fontWeight(.semibold)
+                        VStack{
+                            
+                            Button {
+                                Task { await saveprogress() }
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    if isLoading {
+                                        ProgressView()
+                                    } else {
+                                        Text("Save Progress")
+                                            .fontWeight(.semibold)
+                                    }
+                                    Spacer()
                                 }
-                                Spacer()
                             }
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(DSColor.primary)
+                            .foregroundColor(DSColor.textOnPrimary)
+                            .cornerRadius(8)
+                            .controlSize(.large)
+                            .disabled(isLoading)
+                            
+                            
+                            Button {
+                                Task { await submitForm() }
+                            } label: {
+                                HStack {
+                                    Spacer()
+                                    if isLoading {
+                                        ProgressView()
+                                    } else {
+                                        Text("Submit Hours")
+                                            .fontWeight(.semibold)
+                                    }
+                                    Spacer()
+                                }
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(DSColor.accent)
+                            .foregroundColor(DSColor.textOnAccent)
+                            .cornerRadius(8)
+                            .controlSize(.large) // If you want a larger button
+                            .disabled(isLoading || orgName.isEmpty || hoursString.isEmpty || supervisorSignatureImage == nil)
                         }
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(DSColor.accent)
-                        .foregroundColor(DSColor.textOnAccent)
-                        .cornerRadius(8)
-                        .controlSize(.large) // If you want a larger button
-                        .disabled(isLoading || orgName.isEmpty || hoursString.isEmpty || supervisorSignatureImage == nil)
                     }
                 }
                 .navigationTitle("Log New Hours")
@@ -165,6 +191,102 @@ struct SubmissionFormView: View {
         return true
     }
     
+    private func saveprogress() async {
+        isLoading = true
+        isError = false
+        
+        let dateString = isoDateFormatter.string(from: submissionDate)
+        
+        let submissionDTO = CreateSubmissionDto(
+            orgName: orgName,
+            hours: Double(hoursString),
+            submissionDate: dateString,
+            status: "DRAFT",
+            description: description.isEmpty ? nil : description
+        )
+        
+        do {
+            logger.info("Step 1: Creating initial submission record...")
+            let createdSubmission = try await apiService.submitHours(submissionData: submissionDTO)
+            let submissionId = createdSubmission.id
+            logger.info("Step 1 Successful! Submission ID: \(submissionId)")
+            submissionStatusMessage = "Record created, preparing signature upload..."
+            
+            if let supervisorSignaturePNG = supervisorSignaturePNGData {
+                // --- Step 2: Get S3 upload URL ---
+                logger.info("Step 2: Getting Supervisor signature upload URL...")
+                let supervisorUploadInfo = try await apiService.getSupervisorSignatureUploadUrl(submissionId: submissionId)
+                logger.info("Step 2 Successful! Got S3 key: \(supervisorUploadInfo.key)")
+                submissionStatusMessage = "Uploading Supervisor signature..."
+                
+                
+                
+                print("Data count of Supervisor BEFORE passing to APIService: \(supervisorSignaturePNG.count) bytes")
+                
+                // --- Step 3: Upload signature to S3 ---
+                logger.info("Step 3: Uploading Supervisor signature data to S3...")
+                try await apiService.uploadSupervisorSignatureToS3(uploadUrl: supervisorUploadInfo.uploadUrl, imageData: supervisorSignaturePNG)
+                logger.info("Step 3 Successful! Supervisor Signature uploaded.")
+                submissionStatusMessage = "Saving Supervisor signature reference..."
+                
+                // --- Step 4: Save S3 key reference to backend ---
+                logger.info("Step 4: Saving signature reference to backend...")
+                _ = try await apiService.saveSupervisorSignatureReference(submissionId: submissionId, signatureKey: supervisorUploadInfo.key)
+                logger.info("Step 4 Successful! Signature reference saved.")
+            }
+            
+            if let preApprovedSignaturePNG = preApprovedSignaturePNGData {
+                // --- Step 2: Get S3 upload URL ---
+                logger.info("Step 2: Getting Pre Approved signature upload URL...")
+                let preApprovedIploadInfo = try await apiService.getPreApprovedSignatureUploadUrl(submissionId: submissionId)
+                logger.info("Step 2 Successful! Got S3 key: \(preApprovedIploadInfo.key)")
+                submissionStatusMessage = "Uploading Pre Approved signature..."
+                
+                guard let preApprovedSignaturePNG = preApprovedSignaturePNGData else {
+                    logger.error("Pre Approved Signature not found!")
+                    return
+                }
+                
+                print("Data count of Pre Approved BEFORE passing to APIService: \(preApprovedSignaturePNG.count) bytes")
+                
+                // --- Step 3: Upload signature to S3 ---
+                logger.info("Step 3: Uploading Pre Approved signature data to S3...")
+                try await apiService.uploadPreApprovedSignatureToS3(uploadUrl: preApprovedIploadInfo.uploadUrl, imageData: preApprovedSignaturePNG)
+                logger.info("Step 3 Successful! Pre Approved Signature uploaded.")
+                submissionStatusMessage = "Saving Pre Approved signature reference..."
+                
+                // --- Step 4: Save S3 key reference to backend ---
+                logger.info("Step 4: Saving signature reference to backend...")
+                _ = try await apiService.savePreApprovedSignatureReference(submissionId: submissionId, signatureKey: preApprovedIploadInfo.key)
+                logger.info("Step 4 Successful! Signature reference saved.")
+                
+                // --- Final Success ---
+                submissionStatusMessage = "Unfinished Submission Saved!"
+                isError = false
+                
+                // Wait briefly so user sees success message, then dismiss
+                try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+                dismiss() // Dismiss the sheet
+            }
+        } catch {
+            logger.error("Submission failed: \(error.localizedDescription)")
+            if let apiError = error as? APIError {
+                switch apiError {
+                case .unauthorized: submissionStatusMessage = "Authentication error. Please sign out and try again."
+                case .serverError(_, let msg): submissionStatusMessage = "Server error: \(msg ?? "Please try again.")"
+                case .requestFailed: submissionStatusMessage = "Network error. Please check connection."
+                case .s3UploadFailed: submissionStatusMessage = "Failed to upload signature. Please try again."
+                    
+                default: submissionStatusMessage = "Could not submit hours. Please try again."
+                }
+            } else {
+                submissionStatusMessage = "An unexpected error occurred."
+            }
+            isError = true
+            dump(error)
+        }
+    }
+    
     private func submitForm() async {
         guard isFormValid() else {
             submissionStatusMessage = "Please fill in Organization and valid positive Hours."
@@ -172,7 +294,6 @@ struct SubmissionFormView: View {
             return
         }
         
-        // Ensure hours conversion is safe
         guard let hours = Double(hoursString) else {
             isError = true
             submissionStatusMessage = "Please fill in valid hours"
@@ -200,6 +321,7 @@ struct SubmissionFormView: View {
             orgName: orgName,
             hours: hours,
             submissionDate: dateString,
+            status: "SUBMITTED",
             description: description.isEmpty ? nil : description
         )
         
@@ -212,16 +334,18 @@ struct SubmissionFormView: View {
             logger.info("Step 1 Successful! Submission ID: \(submissionId)")
             submissionStatusMessage = "Record created, preparing signature upload..."
             
+            guard let supervisorSignaturePNG = supervisorSignaturePNGData else {
+                logger.error("Supervisor Signature not found!")
+                return
+            }
+            
             // --- Step 2: Get S3 upload URL ---
             logger.info("Step 2: Getting Supervisor signature upload URL...")
             let supervisorUploadInfo = try await apiService.getSupervisorSignatureUploadUrl(submissionId: submissionId)
             logger.info("Step 2 Successful! Got S3 key: \(supervisorUploadInfo.key)")
             submissionStatusMessage = "Uploading Supervisor signature..."
             
-            guard let supervisorSignaturePNG = supervisorSignaturePNGData else {
-                logger.error("Supervisor Signature not found!")
-                return
-            }
+            
             
             print("Data count of Supervisor BEFORE passing to APIService: \(supervisorSignaturePNG.count) bytes")
             

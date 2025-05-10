@@ -421,7 +421,7 @@ class APIService {
 
             var request = URLRequest(url: url)
             request.httpMethod = "PATCH"
-        request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
+            request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("application/json", forHTTPHeaderField: "Accept")
 

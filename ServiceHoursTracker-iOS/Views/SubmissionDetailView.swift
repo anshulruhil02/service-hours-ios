@@ -50,8 +50,8 @@ struct SubmissionDetailView: View {
             List {
                 // Section for core submission details
                 Section("Submission Details") {
-                    DetailRow(label: "Organization", value: submission.orgName)
-                    DetailRow(label: "Hours Submitted", value: String(format: "%.1f", submission.hours)) // Format hours
+                    DetailRow(label: "Organization", value: submission.orgName ?? "No Org name")
+                    DetailRow(label: "Hours Submitted", value: String(format: "%.1f", submission.hours ?? 0)) // Format hours
                     DetailRow(label: "Date Completed", value: submission.submissionDate, formatter: Self.submissionDateFormatter)
                 }
                 
