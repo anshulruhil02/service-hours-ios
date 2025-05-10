@@ -14,17 +14,9 @@ struct CompleteUserProfileView: View {
     // State variables to hold user input
     @State private var oen: String = ""
     @State private var schoolId: String = ""
-    
-    // State for loading indicator and error messages
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
-    
-    // Environment object or Binding to signal completion
-    // Option 1: Use Environment Dismiss (simpler if presented modally)
     @Environment(\.dismiss) var dismiss
-    // Option 2: Use a Binding passed from the parent view
-    // @Binding var isOnboardingComplete: Bool
-    // Option 3: Use an @EnvironmentObject for app state
      @EnvironmentObject var appState: AppStateManager
 
     // Instance of your API service
@@ -33,64 +25,75 @@ struct CompleteUserProfileView: View {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "CompleteUserProfileView")
 
     var body: some View {
-        NavigationView { // Wrap in NavigationView for a title (optional)
-            VStack(alignment: .leading, spacing: 20) {
-                Text("Complete Your Profile")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                
-                Text("Please provide the following required information to continue:")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                TextField("OEN Number", text: $oen)
-                    .keyboardType(.numberPad) // Use appropriate keyboard
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.5))) // Subtle border
-
-                TextField("School ID", text: $schoolId)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.5)))
+        NavigationView {
+            ZStack {
+                DSColor.backgroundPrimary.ignoresSafeArea()
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("Complete Your Profile")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(DSColor.textPrimary)
                     
-                // Display error messages
-                if let errorMessage {
-                    Text(errorMessage)
-                        .foregroundColor(.red)
-                        .font(.caption)
-                        .padding(.top, 5)
-                }
-
-                Spacer() // Push button to bottom
-
-                Button {
-                    Task { await submitProfile() }
-                } label: {
-                    if isLoading {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .tint(.white) // Make spinner white on blue button
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 30) // Match button height
-                    } else {
-                        Text("Submit Profile")
-                            .fontWeight(.semibold)
-                            .frame(maxWidth: .infinity)
+                    Text("Please provide the following required information to continue:")
+                        .font(.subheadline)
+                        .foregroundColor(DSColor.textSecondary)
+                    
+                    Group {
+                        TextField("OEN Number", text: $oen)
+                            .keyboardType(.numberPad)
+                        
+                        TextField("School ID", text: $schoolId)
                     }
+                    .padding()
+                    .background(DSColor.backgroundSecondary) // Using backgroundSecondary as a surface for inputs
+                    .foregroundColor(DSColor.textPrimary) // For the typed text
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(DSColor.border, lineWidth: 1) // Use DS border color
+                    )
+                    
+                    // Display error messages
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .foregroundColor(DSColor.statusError)
+                            .font(.caption)
+                            .padding(.top, 5)
+                    }
+                    
+                    Spacer() // Push button to bottom
+                    
+                    Button {
+                        Task { await submitProfile() }
+                    }  label: {
+                        HStack {
+                            Spacer()
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .tint(DSColor.textOnAccent)
+                            } else {
+                                Text("Submit Profile")
+                                    .fontWeight(.semibold)
+                            }
+                            Spacer()
+                        }
+                        .frame(height: 30) // Ensure a consistent height for the button's content area
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(DSColor.accent)
+                    .foregroundColor(DSColor.textOnAccent)
+                    .controlSize(.large)
+                    .cornerRadius(8)
+                    .disabled(isLoading || oen.isEmpty || schoolId.isEmpty)
+                    .opacity((isLoading || oen.isEmpty || schoolId.isEmpty) ? 0.6 : 1.0)
+                    
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large) // Make button larger
-                .disabled(isLoading || oen.isEmpty || schoolId.isEmpty) // Basic validation
-
+                .padding()
+                .navigationTitle("Profile Setup")
+                .navigationBarTitleDisplayMode(.inline)
             }
-            .padding()
-            .navigationTitle("Profile Setup") // Optional title
-            .navigationBarTitleDisplayMode(.inline) // Optional title display mode
-            // Add background color if desired
-            // .background(Color(.systemGroupedBackground).ignoresSafeArea())
         }
     }
 

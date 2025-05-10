@@ -16,6 +16,10 @@ struct ServiceHoursTracker_iOSApp: App {
     @State var clerk = Clerk.shared
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "AppRoot")
     
+    init() {
+        clerk.configure(publishableKey: "pk_test_bGl2aW5nLWhlcm9uLTk4LmNsZXJrLmFjY291bnRzLmRldiQ")
+        logger.info("Clerk configured in init.")
+    }
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -35,6 +39,9 @@ struct ServiceHoursTracker_iOSApp: App {
                         }
                 } else {
                     ProgressView()
+                        .onAppear {
+                            logger.debug("ProgressView appeared, Clerk not loaded yet (isLoaded: \(clerk.isLoaded)).")
+                        }
                 }
             }
             .environment(clerk)

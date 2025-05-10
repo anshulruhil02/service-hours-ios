@@ -8,6 +8,26 @@
 import SwiftUI
 import os.log
 
+struct DSInputFieldStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding()
+            .background(DSColor.backgroundSecondary) // Or DSColor.backgroundSurface if you have it
+            .foregroundColor(DSColor.textPrimary)   // For the typed text
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(DSColor.border, lineWidth: 1)
+            )
+    }
+}
+
+extension View {
+    func dsInputFieldStyle() -> some View {
+        self.modifier(DSInputFieldStyle())
+    }
+}
+
 struct SubmissionFormView: View {
     @State private var orgName: String = ""
     @State private var hoursString: String = "" // Collect hours as String for flexible input
@@ -24,7 +44,7 @@ struct SubmissionFormView: View {
     @State var supervisorSignatureImage: UIImage? = nil
     @State var supervisorSignaturePDF: Data? = nil
     @State var supervisorSignaturePNGData: Data? = nil
-
+    
     // states dealing with Pre Approved Signatures
     @State var isPreApprovedSigning: Bool = false
     @State var clearPreApprovedSignature: Bool = false
@@ -46,160 +66,95 @@ struct SubmissionFormView: View {
     }()
     
     var body: some View {
-        NavigationView {
-            VStack {
-                Section("Submission details") {
-                    TextField("Organization name", text: $orgName)
-                    
-                    TextField("Hours completed", text: $hoursString)
-                        .keyboardType(.decimalPad)
-                    
-                    DatePicker("Date Completed", selection: $submissionDate, displayedComponents: [.date])
-                        .datePickerStyle(.compact)
-                    
-                    VStack(alignment: .leading) {
-                        Text("Description (Optional)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        TextEditor(text: $description)
-                            .frame(height: 100) // Set a reasonable height
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
-                    }
-                }
-                
-                Section("Signatures") {
-                    HStack {
-                        VStack(alignment: .center) {
-                            ZStack(alignment: isSupervisorSigning ? .bottomTrailing: .center) {
-                                SignatureViewContainer(clearSignature: $clearSupervisorSignature, signatureImage: $supervisorSignatureImage, pdfSignature: $supervisorSignaturePDF, signaturePNGData: $supervisorSignaturePNGData)
-                                    .disabled(!isSupervisorSigning)
-                                    .frame(height: 197)
-                                    .frame(maxWidth: .infinity)
-                                    .background(.white)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.accentColor, lineWidth: 3)
-                                    )
-                                if isSupervisorSigning {
-                                    Button(action: {
-                                        clearSupervisorSignature = true
-                                    }, label: {
-                                        HStack {
-                                            Text("Clear")
-                                                .font(.callout)
-                                                .foregroundColor(.black)
-                                        }
-                                        .padding(.horizontal, 12)
-                                        .frame(height: 28)
-                                        .background(
-                                            Capsule()
-                                                .fill(.green)
-                                        )
-                                    })
-                                    .offset(.init(width: -12, height: -12))
-                                } else {
-                                    Button(action: {
-                                        isSupervisorSigning = true
-                                    }, label: {
-                                        VStack(alignment: .center, spacing: 0) {
-                                            Image(systemName: "pencil")
-                                                .resizable()
-                                                .foregroundColor(.black)
-                                                .frame(width: 20, height: 20)
-                                                .padding(8)
-                                            Text("Sign here")
-                                                .font(.footnote)
-                                                .foregroundColor(.gray)
-                                        }
-                                    })
-                                }
-                            }
-                            .padding(.top, 16)
-                            .padding(.horizontal, 3)
-                        }
+        ZStack { // Apply global background
+            DSColor.backgroundPrimary.ignoresSafeArea()
+            NavigationView {
+                VStack(alignment: .center, spacing: 10) {
+                    Section("Submission details") {
+                        TextField("Organization name", text: $orgName)
+                            .dsInputFieldStyle()
+                        TextField("Hours completed", text: $hoursString)
+                            .keyboardType(.decimalPad)
+                            .dsInputFieldStyle()
                         
-                        VStack(alignment: .center) {
-                            ZStack(alignment: isPreApprovedSigning ? .bottomTrailing: .center) {
-                                SignatureViewContainer(clearSignature: $clearPreApprovedSignature, signatureImage: $preApprovedSignatureImage, pdfSignature: $preAppriovedSignaturePDF, signaturePNGData: $preApprovedSignaturePNGData)
-                                    .disabled(!isPreApprovedSigning)
-                                    .frame(height: 197)
-                                    .frame(maxWidth: .infinity)
-                                    .background(.white)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.accentColor, lineWidth: 3)
-                                    )
-                                if isPreApprovedSigning {
-                                    Button(action: {
-                                        clearPreApprovedSignature = true
-                                    }, label: {
-                                        HStack {
-                                            Text("Clear")
-                                                .font(.callout)
-                                                .foregroundColor(.black)
-                                        }
-                                        .padding(.horizontal, 12)
-                                        .frame(height: 28)
-                                        .background(
-                                            Capsule()
-                                                .fill(.green)
-                                        )
-                                    })
-                                    .offset(.init(width: -12, height: -12))
+                        DatePicker("Date Completed", selection: $submissionDate, displayedComponents: [.date])
+                            .datePickerStyle(.compact)
+                            .tint(DSColor.accent) // Tint interactive parts of the picker
+                            .foregroundColor(DSColor.textPrimary)
+                        
+                        VStack(alignment: .leading) {
+                            Text("Description (Optional)")
+                                .font(.caption)
+                                .foregroundStyle(DSColor.textSecondary)
+                            TextEditor(text: $description)
+                                .frame(height: 100)
+                                .foregroundColor(DSColor.textPrimary) // For typed text
+                                .scrollContentBackground(.hidden)
+                                .background(DSColor.backgroundSecondary) // Or DSColor.backgroundSurface
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(DSColor.border, lineWidth:1))
+                        }
+                    }
+                    
+                    Section("Signatures") {
+                        HStack(spacing: 15) { // Add spacing between signature pads
+                            SignaturePadView(
+                                title: "Supervisor",
+                                isSigning: $isSupervisorSigning,
+                                clearSignature: $clearSupervisorSignature,
+                                signatureImage: $supervisorSignatureImage,
+                                signaturePDF: $supervisorSignaturePDF,
+                                signaturePNGData: $supervisorSignaturePNGData
+                            )
+                            
+                            SignaturePadView(
+                                title: "Pre-Approved",
+                                isSigning: $isPreApprovedSigning,
+                                clearSignature: $clearPreApprovedSignature,
+                                signatureImage: $preApprovedSignatureImage,
+                                signaturePDF: $preAppriovedSignaturePDF, // Corrected typo in binding
+                                signaturePNGData: $preApprovedSignaturePNGData
+                            )
+                        }
+                    }
+                    
+                    
+                    if let statusMessage = submissionStatusMessage {
+                        Text(statusMessage)
+                            .font(.caption) // Consider DSFont.caption
+                            .foregroundColor(isError ? DSColor.statusError : DSColor.statusSuccess)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 5)
+                    }
+                    
+                    Section {
+                        Button {
+                            Task { await submitForm() }
+                        } label: {
+                            HStack {
+                                Spacer()
+                                if isLoading {
+                                    ProgressView()
                                 } else {
-                                    Button(action: {
-                                        isPreApprovedSigning = true
-                                    }, label: {
-                                        VStack(alignment: .center, spacing: 0) {
-                                            Image(systemName: "pencil")
-                                                .resizable()
-                                                .foregroundColor(.black)
-                                                .frame(width: 20, height: 20)
-                                                .padding(8)
-                                            Text("Sign here")
-                                                .font(.footnote)
-                                                .foregroundColor(.gray)
-                                        }
-                                    })
+                                    Text("Submit Hours")
+                                        .fontWeight(.semibold)
                                 }
+                                Spacer()
                             }
-                            .padding(.top, 16)
-                            .padding(.horizontal, 3)
                         }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(DSColor.accent)
+                        .foregroundColor(DSColor.textOnAccent)
+                        .cornerRadius(8)
+                        .controlSize(.large) // If you want a larger button
+                        .disabled(isLoading || orgName.isEmpty || hoursString.isEmpty || supervisorSignatureImage == nil)
                     }
-                    
-                    
                 }
-                
-                
-                if let statusMessage = submissionStatusMessage {
-                    Text(statusMessage)
-                        .font(.caption)
-                        .foregroundColor(isError ? .red : .green)
-                        .padding(.vertical, 5)
-                }
-                
-                Section {
-                    Button {
-                        Task { await submitForm() }
-                    } label: {
-                        HStack {
-                            Spacer()
-                            if isLoading {
-                                ProgressView()
-                            } else {
-                                Text("Submit Hours")
-                                    .fontWeight(.semibold)
-                            }
-                            Spacer()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isLoading)
-                }
+                .navigationTitle("Log New Hours")
+                .navigationBarTitleDisplayMode(.inline)
+                .padding()
             }
-            .navigationTitle("Log New Hours")
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
     func isFormValid() -> Bool {
@@ -240,7 +195,7 @@ struct SubmissionFormView: View {
         isError = false
         print("Date format before transformation \(submissionDate)")
         let dateString = isoDateFormatter.string(from: submissionDate)
-
+        
         let initialSubmissionDTO = CreateSubmissionDto(
             orgName: orgName,
             hours: hours,
@@ -267,9 +222,9 @@ struct SubmissionFormView: View {
                 logger.error("Supervisor Signature not found!")
                 return
             }
-        
+            
             print("Data count of Supervisor BEFORE passing to APIService: \(supervisorSignaturePNG.count) bytes")
-
+            
             // --- Step 3: Upload signature to S3 ---
             logger.info("Step 3: Uploading Supervisor signature data to S3...")
             try await apiService.uploadSupervisorSignatureToS3(uploadUrl: supervisorUploadInfo.uploadUrl, imageData: supervisorSignaturePNG)
@@ -292,9 +247,9 @@ struct SubmissionFormView: View {
                 logger.error("Pre Approved Signature not found!")
                 return
             }
-        
+            
             print("Data count of Pre Approved BEFORE passing to APIService: \(preApprovedSignaturePNG.count) bytes")
-
+            
             // --- Step 3: Upload signature to S3 ---
             logger.info("Step 3: Uploading Pre Approved signature data to S3...")
             try await apiService.uploadPreApprovedSignatureToS3(uploadUrl: preApprovedIploadInfo.uploadUrl, imageData: preApprovedSignaturePNG)
@@ -322,7 +277,7 @@ struct SubmissionFormView: View {
                 case .serverError(_, let msg): submissionStatusMessage = "Server error: \(msg ?? "Please try again.")"
                 case .requestFailed: submissionStatusMessage = "Network error. Please check connection."
                 case .s3UploadFailed: submissionStatusMessage = "Failed to upload signature. Please try again."
-
+                    
                 default: submissionStatusMessage = "Could not submit hours. Please try again."
                 }
             } else {
@@ -333,12 +288,91 @@ struct SubmissionFormView: View {
         }
     }
     
-//    private func clearForm() {
-//        orgName = ""
-//        hoursString = ""
-//        submissionDate = Date() // Reset to today
-//        description = ""
-//        signatureImage = nil
-//        signaturePNGData = nil
-//    }
+    //    private func clearForm() {
+    //        orgName = ""
+    //        hoursString = ""
+    //        submissionDate = Date() // Reset to today
+    //        description = ""
+    //        signatureImage = nil
+    //        signaturePNGData = nil
+    //    }
+}
+
+struct SignaturePadView: View {
+    let title: String
+    @Binding var isSigning: Bool
+    @Binding var clearSignature: Bool
+    @Binding var signatureImage: UIImage?
+    @Binding var signaturePDF: Data?
+    @Binding var signaturePNGData: Data?
+
+    var body: some View {
+        VStack(alignment: .center) {
+            Text(title)
+                .font(.headline) // Consider DSFont.headline
+                .foregroundColor(DSColor.textPrimary)
+
+            ZStack(alignment: isSigning ? .topTrailing : .center) { // Changed alignment for clear button
+                SignatureViewContainer(
+                    clearSignature: $clearSignature,
+                    signatureImage: $signatureImage,
+                    pdfSignature: $signaturePDF,
+                    signaturePNGData: $signaturePNGData
+                )
+                .disabled(!isSigning)
+                .frame(height: 150) // Adjusted height
+                .frame(maxWidth: .infinity)
+                .background(DSColor.backgroundSecondary) // Or DSColor.backgroundSurface, ensure it's not pure white if main bg is also white
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isSigning ? DSColor.accent : DSColor.border, lineWidth: isSigning ? 3 : 1) // Dynamic border
+                )
+
+                if signatureImage != nil && !isSigning { // Show "Edit" if image exists and not currently signing
+                    Button(action: {
+                        isSigning = true
+                    }) {
+                        Image(systemName: "pencil.circle.fill")
+                            .resizable()
+                            .foregroundColor(DSColor.accent)
+                            .frame(width: 30, height: 30)
+                            .background(DSColor.backgroundPrimary.opacity(0.8)) // So it stands out
+                            .clipShape(Circle())
+                    }
+                } else if isSigning {
+                    Button(action: {
+                        clearSignature = true // This will trigger the clear in SignatureViewContainer
+                        signatureImage = nil // Also clear the image binding here
+                        signaturePDF = nil
+                        signaturePNGData = nil
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(DSColor.statusError)
+                            .padding(5) // Padding around the clear button
+                            .background(DSColor.backgroundSecondary.opacity(0.7))
+                            .clipShape(Circle())
+                    }
+                    .padding(5) // Padding for the button itself for easier tapping
+                } else { // No image, not signing -> "Sign Here"
+                    Button(action: {
+                        isSigning = true
+                    }) {
+                        VStack(alignment: .center, spacing: 4) { // Adjusted spacing
+                            Image(systemName: "pencil.and.scribble") // More relevant icon
+                                .resizable()
+                                .scaledToFit()
+                                .foregroundColor(DSColor.textSecondary) // Changed from .black
+                                .frame(width: 30, height: 30) // Adjusted size
+                            Text("Sign here")
+                                .font(.caption) // Consider DSFont.caption
+                                .foregroundColor(DSColor.textPlaceholder) // Changed from .gray
+                        }
+                        .padding() // Add padding to make the tappable area larger
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity) // Make button fill ZStack area
+                }
+            }
+        }
+    }
 }

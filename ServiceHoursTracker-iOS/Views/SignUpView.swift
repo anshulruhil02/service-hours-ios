@@ -32,75 +32,86 @@ struct SignUpView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("Create Your Account")
-                .font(.title)
-                .fontWeight(.bold)
-            
-            if isVerifying {
-                // --- Verification Code UI ---
-                Text("Enter the code sent to \(email)")
-                    .font(.subheadline)
+        ZStack {
+            DSColor.backgroundPrimary
+                .ignoresSafeArea(edges: .all)
+            VStack(alignment: .leading, spacing: 15) {
+                Text("Create Your Account")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundStyle(DSColor.textPrimary)
                 
-                TextField("Verification Code", text: $code)
-                    .keyboardType(.numberPad)
-                    .textContentType(.oneTimeCode)
+                if isVerifying {
+                    // --- Verification Code UI ---
+                    Text("Enter the code sent to \(email)")
+                        .font(.subheadline)
+                        .foregroundColor(DSColor.textSecondary)
+                    
+                    TextField("Verification Code", text: $code)
+                        .keyboardType(.numberPad)
+                        .textContentType(.oneTimeCode)
+                        .padding()
+                        .background(DSColor.backgroundSecondary)
+                        .foregroundColor(DSColor.textPrimary)
+                        .cornerRadius(8)
+                    
+                    Button("Verify Email") {
+                        Task { await verify(code: code) }
+                    }
+                    frame(maxWidth: .infinity)
+                        .padding()
+                        .background(DSColor.accent)
+                        .foregroundColor(DSColor.textOnAccent)
+                        .cornerRadius(8)
+                        .disabled(code.isEmpty) // Example of disabling
+                        .opacity(code.isEmpty ? 0.7 : 1.0)
+                    
+                } else {
+                    Group {
+                        TextField("First Name", text: $firstName)
+                        
+                        TextField("Last Name", text: $lastName)
+                        
+                        TextField("Email Address", text: $email)
+                            .keyboardType(.emailAddress)
+                            .textContentType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                        
+                        SecureField("Password (8+ characters)", text: $password)
+                            .textContentType(.password)
+                    }
                     .padding()
-                    .background(Color(.systemGray6))
+                    .background(DSColor.backgroundSecondary)
+                    .foregroundColor(DSColor.textPrimary)
                     .cornerRadius(8)
-                
-                Button("Verify Email") {
-                    Task { await verify(code: code) }
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(DSColor.border, lineWidth: 1)
+                    )
+                    
+                    Button("Sign Up") {
+                        Task { await signUp() }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(DSColor.accent)
+                    .foregroundColor(DSColor.textOnAccent)
+                    .cornerRadius(8)
+                    .disabled(email.isEmpty || password.isEmpty || firstName.isEmpty || lastName.isEmpty)
+                    .opacity((email.isEmpty || password.isEmpty || firstName.isEmpty || lastName.isEmpty) ? 0.7 : 1.0)
                 }
-                .buttonStyle(.borderedProminent)
-                .frame(maxWidth: .infinity)
                 
-            } else {
-                // --- Initial Sign Up Form UI ---
-                TextField("First Name", text: $firstName)
-                    .textContentType(.givenName)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                
-                TextField("Last Name", text: $lastName)
-                    .textContentType(.familyName)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                
-                TextField("Email Address", text: $email)
-                    .keyboardType(.emailAddress)
-                    .textContentType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                
-                SecureField("Password (8+ characters)", text: $password)
-                    .textContentType(.newPassword)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                
-                Button("Sign Up") {
-                    Task { await signUp() }
+                // Display error messages
+                if let errorMessage {
+                    Text(errorMessage)
+                        .foregroundColor(DSColor.statusError)
+                        .font(.caption)
                 }
-                .buttonStyle(.borderedProminent)
-                .frame(maxWidth: .infinity)
+                
+                Spacer()
             }
-            
-            // Display error messages
-            if let errorMessage {
-                Text(errorMessage)
-                    .foregroundColor(.red)
-                    .font(.caption)
-            }
-            
-            Spacer()
+            .padding()
         }
-        .padding()
-
     }
 }
 
