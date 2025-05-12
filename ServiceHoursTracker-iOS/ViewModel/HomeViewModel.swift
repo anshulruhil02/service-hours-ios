@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import os.log
+import SwiftUI
 
 @MainActor
 class HomeViewModel: ObservableObject {
@@ -17,11 +18,21 @@ class HomeViewModel: ObservableObject {
     @Published var showingSubmitSheet: Bool = false
     @Published var isLoading: Bool = true
     @Published var errorMessage: String?
+    @Published var exportPDF = false
+    
+    // --- NEW Published Properties for PDF ---
+    @Published var pdfReportData: Data? = nil // Holds the fetched PDF data
+    @Published var showingShareSheet: Bool = false // Controls presentation of ShareLink's sheet
+    @Published var isGeneratingReport: Bool = false // Specific loading state for report
+    @Published var reportError: String? = nil
+    @Published var path = NavigationPath()
+    
     private let apiService = APIService()
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "HomeViewModel")
-
+    
     func fetchUserSubmissions() async {
         do {
+            errorMessage = nil
             print("inside the viewModel's fetch function")
             let fetchedSubmissions = try await apiService.fetchSubmissions()
             self.submissions = fetchedSubmissions
@@ -30,12 +41,12 @@ class HomeViewModel: ObservableObject {
             print("Complete submissions: \(completeSubmissions)")
             print("Incomplete submissions: \(incompleteSubmissions)")
             logger.info("Successfully fetched \(fetchedSubmissions.count) submissions from API.")
+        } catch is CancellationError { // <-- CATCH CANCELLATION ERROR
+            logger.info("Fetch submissions task was cancelled (e.g., tab switched). This is normal.")
         } catch let error as APIError {
             switch error {
             case .unauthorized:
                 errorMessage = "Authentication error. Please sign out and sign in again."
-                // Potentially trigger sign out via AppStateManager or Clerk directly
-                // Example: Task { try? await Clerk.shared.signOut() }
             case .noActiveSession, .tokenUnavailable:
                 errorMessage = "Not logged in or session invalid."
             case .serverError(_, let msg):
@@ -55,5 +66,33 @@ class HomeViewModel: ObservableObject {
         }
         
         isLoading = false
+    }
+    
+    func generateAndPreparePdfReport() async {
+        guard !isGeneratingReport else { return } // Prevent multiple calls
+        
+        logger.info("Generating PDF report...")
+        isGeneratingReport = true
+        reportError = nil
+        pdfReportData = nil // Clear previous data
+        
+        do {
+            let fetchedPdfData = try await apiService.downloadPdfReport()
+            self.pdfReportData = fetchedPdfData
+            self.showingShareSheet = true // Trigger the share sheet in the View
+            logger.info("PDF report data fetched successfully, ready for sharing.")
+        } catch let error as APIError {
+            logger.error("Failed to generate PDF report: \(error.localizedDescription)")
+            switch error {
+            case .unauthorized: reportError = "Authentication error. Please sign out and sign in."
+            default: reportError = "Could not generate report. Please try again."
+            }
+            dump(error)
+        } catch {
+            logger.error("Unexpected error generating PDF report: \(error.localizedDescription)")
+            reportError = "An unexpected error occurred."
+            dump(error)
+        }
+        isGeneratingReport = false
     }
 }

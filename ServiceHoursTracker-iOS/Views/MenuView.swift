@@ -13,67 +13,93 @@ struct MenuView: View {
     @Environment(Clerk.self) private var clerk // For Clerk operations
     // If you need to close the menu from within, you might pass isMenuOpen as a @Binding
     // @Binding var isMenuOpen: Bool // Example
-
+    @Binding var selectedMenuItem: MenuNavigation
+    @Binding var isMenuOpen: Bool
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "MenuView")
     
     var body: some View {
         // The ZStack's main purpose here is to set the background
         // that ignores safe areas for the menu's content area.
         // The frame of this ZStack (width) will be determined by HomeView.
-        ZStack {
-            DSColor.backgroundSecondary
-                .ignoresSafeArea() // Make background fill the menu's allocated space
-
-            VStack(alignment: .leading, spacing: 0) { // spacing 0, control with padding or Spacer
+        NavigationStack {
+            ZStack {
+                DSColor.backgroundSecondary
+                    .ignoresSafeArea() // Make background fill the menu's allocated space
                 
-                // 1. Header Section (Optional, but nice)
-                MenuHeaderView()
-                    .padding(.bottom, 20)
-
-                // 2. Menu Items
-                MenuItem(iconName: "list.bullet.rectangle.portrait.fill", title: "Submissions") {
-                    logger.info("Submissions tapped")
-                    // Add action: e.g., navigate to submissions, close menu
-                    // if isMenuOpen { isMenuOpen = false } // Example of closing menu
-                }
-
-                MenuDivider()
-
-                MenuItem(iconName: "person.circle.fill", title: "User Info") {
-                    logger.info("User info tapped")
-                    // Add action: e.g., navigate to user info, close menu
-                }
-                
-                // Add more menu items here if needed, each followed by a MenuDivider
-                // MenuItem(iconName: "gearshape.fill", title: "Settings") { ... }
-                // MenuDivider()
-
-                Spacer() // Pushes the Sign Out button to the bottom
-
-                // 3. Footer / Sign Out Section
-                MenuDivider()
-                
-                MenuItem(iconName: "arrow.left.square.fill", title: "Sign Out", role: .destructive) {
-                    logger.info("Sign out tapped")
-                    Task {
-                        do {
-                            // Ensure you are using the correct sign out method for your Clerk SDK version
-                            // For ClerkSwift 2.0+ it's usually clerk.client.signOut()
-                            try await clerk.signOut()
-                            logger.info("User signed out successfully.")
-                            // IMPORTANT: After sign out, you need to notify your app's root
-                            // to switch to the login screen. This often involves changing
-                            // an @ObservedObject or @EnvironmentObject's state.
-                        } catch {
-                            logger.error("Sign out error: \(error.localizedDescription)")
-                            // Optionally show an error to the user
+                VStack(alignment: .leading, spacing: 0) { // spacing 0, control with padding or Spacer
+                    
+                    // 1. Header Section (Optional, but nice)
+                    MenuHeaderView()
+                        .padding(.bottom, 20)
+                    
+                    // 2. Menu Items
+                    MenuItem(iconName: "list.bullet.rectangle.portrait.fill", title: "Submissions") {
+                        logger.info("Submissions tapped")
+                        selectedMenuItem = .submissions
+                        withAnimation(.easeInOut) {
+                            isMenuOpen = false
+                        }
+                    }
+                    
+                    MenuDivider()
+                    
+                    MenuItem(iconName: "person.circle.fill", title: "User Info") {
+                        logger.info("User info tapped")
+                        selectedMenuItem = .userinfo
+                        withAnimation(.easeInOut) {
+                            isMenuOpen = false
+                        }
+                    }
+                    
+                    MenuDivider()
+                    
+                    MenuItem(iconName: "square.and.arrow.down", title: "Export PDF") {
+//                        print("Menu Tapped")
+//                        Task { await viewModel.generateAndPreparePdfReport() }
+//                        //                    Button {
+//                        //                        Task { await viewModel.generateAndPreparePdfReport() }
+//                        //                    } label: {
+//                        //                        Label("Download Report", systemImage: "doc.text.fill")
+//                        //                    }
+                        selectedMenuItem = .exportPDF
+                        withAnimation(.easeInOut) {
+                            isMenuOpen = false
+                        }
+                    }
+                    
+                    // Add more menu items here if needed, each followed by a MenuDivider
+                    // MenuItem(iconName: "gearshape.fill", title: "Settings") { ... }
+                    // MenuDivider()
+                    
+                    Spacer() // Pushes the Sign Out button to the bottom
+                    
+                    // 3. Footer / Sign Out Section
+                    MenuDivider()
+                    
+                    MenuItem(iconName: "arrow.left.square.fill", title: "Sign Out", role: .destructive) {
+                        logger.info("Sign out tapped")
+                        Task {
+                            do {
+                                // Ensure you are using the correct sign out method for your Clerk SDK version
+                                // For ClerkSwift 2.0+ it's usually clerk.client.signOut()
+                                try await clerk.signOut()
+                                logger.info("User signed out successfully.")
+                                // IMPORTANT: After sign out, you need to notify your app's root
+                                // to switch to the login screen. This often involves changing
+                                // an @ObservedObject or @EnvironmentObject's state.
+                            } catch {
+                                logger.error("Sign out error: \(error.localizedDescription)")
+                                // Optionally show an error to the user
+                            }
                         }
                     }
                 }
+                .padding(.horizontal) // Standard horizontal padding for the content
+                .padding(.vertical, 20) // Top and bottom padding for the VStack content
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) // Ensure VStack fills its space
+                .border(DSColor.border)
+                
             }
-            .padding(.horizontal) // Standard horizontal padding for the content
-            .padding(.vertical, 20) // Top and bottom padding for the VStack content
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) // Ensure VStack fills its space
         }
     }
 }

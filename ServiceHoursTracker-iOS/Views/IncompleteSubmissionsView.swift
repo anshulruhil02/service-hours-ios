@@ -63,11 +63,11 @@ struct IncompleteSubmissionsView: View {
                     .refreshable {
                         await viewModel.fetchUserSubmissions()
                     }
-                    .task {
-                        await viewModel.fetchUserSubmissions()
-                    }
                 }
             }
+        }
+        .task {
+            await viewModel.fetchUserSubmissions()
         }
     }
 }

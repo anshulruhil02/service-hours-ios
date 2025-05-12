@@ -17,7 +17,7 @@ struct CompleteUserProfileView: View {
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
     @Environment(\.dismiss) var dismiss
-     @EnvironmentObject var appState: AppStateManager
+    @EnvironmentObject var appState: AppStateManager
 
     // Instance of your API service
     // For better testability later, consider injecting this via initializer or environment

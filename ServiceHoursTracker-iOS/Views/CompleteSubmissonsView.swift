@@ -72,5 +72,8 @@ struct CompleteSubmissonsView: View {
                 }
             }
         }
+        .task {
+            await viewModel.fetchUserSubmissions()
+        }
     }
 }

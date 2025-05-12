@@ -725,6 +725,67 @@ class APIService {
             } catch let error as APIError { throw error }
               catch { throw APIError.requestFailed(error) }
         } // End getSignatureViewUrl
+    
+    func downloadPdfReport() async throws -> Data {
+            guard let session = await Clerk.shared.session else {
+                logger.error("API Error: No active Clerk session found for PDF report.")
+                throw APIError.noActiveSession
+            }
+            
+            guard let token = try? await session.getToken() else {
+                logger.error("API Error: Could not retrieve default Clerk token object for PDF report.")
+                throw APIError.tokenUnavailable
+            }
+            
+            // Endpoint for student's own report
+            guard let url = URL(string: "\(baseURL)/users/me/submissions/report/pdf") else {
+                logger.error("API Error: Invalid URL for PDF report.")
+                throw APIError.invalidURL
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+        request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
+            // No need for 'Accept: application/json' here as we expect PDF data
+
+            logger.info("Requesting PDF report from \(url)")
+
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    logger.error("API Error: Invalid response received for PDF report.")
+                    throw APIError.invalidResponse
+                }
+                logger.info("Received status code for PDF report request: \(httpResponse.statusCode)")
+
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    let responseBody = String(data: data, encoding: .utf8)
+                    if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                        logger.warning("API Error: Unauthorized (\(httpResponse.statusCode)) for PDF report. Body: \(responseBody ?? "N/A")")
+                        throw APIError.unauthorized
+                    } else {
+                        logger.error("API Error: Server error (\(httpResponse.statusCode)) for PDF report. Body: \(responseBody ?? "N/A")")
+                        throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody)
+                    }
+                }
+                
+                // Check if data is actually PDF (optional, but good for robustness)
+                if httpResponse.mimeType?.lowercased() != "application/pdf" {
+                     logger.warning("API Warning: Expected PDF content type but received \(httpResponse.mimeType ?? "unknown") for PDF report.")
+                     // Decide if you want to throw an error or proceed if data might still be valid
+                }
+
+                logger.info("Successfully downloaded PDF report data (\(data.count) bytes).")
+                return data // Return the raw PDF data
+                
+            } catch let error as APIError {
+                throw error
+            } catch {
+                logger.error("API Error: URLSession request failed for PDF report - \(error)")
+                throw APIError.requestFailed(error)
+            }
+        }
 
     // Inside APIService class
     static let iso8601Full: DateFormatter = {

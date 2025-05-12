@@ -387,14 +387,7 @@ struct SubmissionFormView: View {
                 logger.info("Step 4: Saving signature reference to backend...")
                 _ = try await apiService.savePreApprovedSignatureReference(submissionId: submissionId, signatureKey: preApprovedIploadInfo.key)
                 logger.info("Step 4 Successful! Signature reference saved.")
-                
-                // --- Final Success ---
-                submissionStatusMessage = "Unfinished Submission Saved!"
-                isError = false
-                
-                // Wait briefly so user sees success message, then dismiss
-                try? await Task.sleep(nanoseconds: 500_000_000) // 1.5 seconds
-                dismiss() // Dismiss the sheet
+
             }
             
             // --- Final Success ---

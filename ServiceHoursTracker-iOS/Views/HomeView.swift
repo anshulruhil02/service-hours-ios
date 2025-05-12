@@ -6,7 +6,8 @@ import os.log
 
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
-    @State private var selectedTab: TabIdentifier = .completeSubmissions
+    @State var selectedMenuItem: MenuNavigation = .submissions
+    
     private var screenWidth: CGFloat {
         UIScreen.main.bounds.width
     }
@@ -20,35 +21,24 @@ struct HomeView: View {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "HomeView")
     
     var body: some View {
-        // NavigationStack enables the navigation bar and pushing detail views (iOS 16+)
         ZStack {
             DSColor.backgroundPrimary.ignoresSafeArea()
             NavigationStack {
-                TabView(selection: $selectedTab){
-                    CompleteSubmissonsView(viewModel: viewModel)
-                        .tabItem {
-                            Label("Complete Submissions", systemImage: "checkmark.seal.text.page")
-                        }
-                        .tag(TabIdentifier.completeSubmissions)
-                    
-                    IncompleteSubmissionsView(viewModel: viewModel)
-                        .tabItem {
-                            Label("Incopmlete Submissions", systemImage: "chart.line.text.clipboard")
-                        }
-                        .tag(TabIdentifier.incompleteSubmissions)
+                Group {
+                    switch selectedMenuItem {
+                    case .submissions:
+                        SubmissionsView(viewModel: viewModel, isMenuOpen: $isMenuOpen)
+                    case .userinfo:
+                        UserInfoView()
+                    case .exportPDF:
+                        ExportView()
+                    }
                 }
-                .navigationTitle("My Hours") // Set the title displayed in the navigation bar
-                // Add buttons to the navigation bar's toolbar
-//                .onTapGesture {
-//                    withAnimation(.easeInOut) {
-//                        isMenuOpen = false
-//                    }
-//                }
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button {
                             withAnimation(.easeInOut) { // Add animation for menu toggle
-                                isMenuOpen.toggle()
+                                isMenuOpen = true
                             }
                         } label: {
                             Image(systemName: "line.3.horizontal")
@@ -59,7 +49,6 @@ struct HomeView: View {
                     // Top Right "+" Button
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
-                            // Set the ViewModel's state variable to true to present the sheet
                             viewModel.showingSubmitSheet = true
                         } label: {
                             Image(systemName: "plus.circle.fill") // Use a filled plus icon
@@ -69,41 +58,29 @@ struct HomeView: View {
                 }
                 .navigationDestination(isPresented: $viewModel.showingSubmitSheet) {
                     SubmissionFormView()
-                        .onDisappear {
-                            logger.info("SubmissionFormView sheet dismissed.")
-                            Task { await viewModel.fetchUserSubmissions() }
-                        }
                 }
-                
-                // Fetch initial data when the view first appears
-                .task {
-                    if viewModel.submissions.isEmpty {
-                        logger.info("HomeView appeared, fetching initial submissions.")
-                        await viewModel.fetchUserSubmissions()
-                    }
-                }
-                
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity) // Ensure it fills space
-            .background(DSColor.backgroundPrimary.ignoresSafeArea()) // Background for the main content area
-            .offset(x: isMenuOpen ? menuWidth * 0.3 : 0) // Optional: Slight push effect for main content
-            .disabled(isMenuOpen) // Disable main content interaction when menu is open
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(DSColor.backgroundPrimary.ignoresSafeArea())
+            .offset(x: isMenuOpen ? menuWidth * 0.3 : 0)
             .zIndex(0) // Main content is at the base
             
-            // Layer 2: Dimming Overlay (Only appears when menu is open)
+            
             if isMenuOpen {
                 Color.black.opacity(0.4)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle()) // Ensure the whole area is tappable
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .ignoresSafeArea(.all, edges: .vertical)
+                    .offset(x: isMenuOpen ? menuWidth * 0.3 : 0)
+                    .zIndex(0)
                     .onTapGesture {
                         withAnimation(.easeInOut) {
                             isMenuOpen = false
                         }
                     }
-                    .zIndex(1) // Above main content, below menu
+                    .animation(.easeInOut, value: isMenuOpen)
             }
             HStack {
-                MenuView()
+                MenuView(selectedMenuItem: $selectedMenuItem, isMenuOpen: $isMenuOpen)
                     .frame(width: menuWidth)
                 // Slide in/out
                 Spacer() // Pushes menu to the left
@@ -115,10 +92,7 @@ struct HomeView: View {
     }
 }
 
-enum TabIdentifier {
-    case completeSubmissions
-    case incompleteSubmissions
-}
+
 
 struct SubmissionRow: View {
     let submission: SubmissionResponse // Takes a submission object
@@ -165,3 +139,8 @@ struct SubmissionRow: View {
     }
 }
 
+enum MenuNavigation {
+    case submissions
+    case userinfo
+    case exportPDF
+}
