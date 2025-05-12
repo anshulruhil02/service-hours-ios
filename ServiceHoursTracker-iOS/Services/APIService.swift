@@ -326,9 +326,52 @@ class APIService {
             
         } catch let error as APIError {
             throw error
-        }
-        catch {
+        } catch {
             logger.error("API Error: URLSession POST request failed for \(url.path) - \(error)")
+            throw APIError.requestFailed(error)
+        }
+    }
+    
+    func updateSubmission(submissionId: String, existingSubmission: CreateSubmissionDto) async throws -> SubmissionResponse {
+        guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
+        guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
+        guard let url = URL(string: "\(baseURL)/submissions/\(submissionId)") else { throw APIError.invalidURL }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        let encoder = JSONEncoder()
+        do {
+            request.httpBody = try encoder.encode(existingSubmission)
+        } catch {
+            throw APIError.encodingError(error)
+        }
+        
+        logger.info("Sending a patch request to update submission")
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let responseBody = String(data: data, encoding: .utf8)
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 { throw APIError.unauthorized }
+                else { throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody) }
+            }
+            
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .formatted(APIService.iso8601Full)
+            do {
+                let updatedSubmission = try decoder.decode(SubmissionResponse
+                    .self, from: data)
+                return updatedSubmission
+            } catch {
+                throw APIError.decodingError(error)
+            }
+        } catch {
+            logger.error("API Error: URLSession PATCH request failed for \(url.path) - \(error)")
             throw APIError.requestFailed(error)
         }
     }

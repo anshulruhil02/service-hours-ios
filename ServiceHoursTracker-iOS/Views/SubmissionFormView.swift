@@ -51,6 +51,12 @@ struct SubmissionFormView: View {
     @State var preApprovedSignatureImage: UIImage? = nil
     @State var preAppriovedSignaturePDF: Data? = nil
     @State var preApprovedSignaturePNGData: Data? = nil
+    var submissionToEdit: SubmissionResponse?
+    var previousSubmissionExists: Bool {
+        return submissionToEdit != nil
+    }
+    @State var previousSupervisorSignatureURL: URL?
+    @State var previousPreAprrovedSignatureURL: URL?
     
     @Environment(\.dismiss) var dismiss
     
@@ -64,6 +70,16 @@ struct SubmissionFormView: View {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds] // Matches format like 2023-10-27T10:15:30.123Z
         return formatter
     }()
+    
+    init(existingSubmission: SubmissionResponse? = nil) {
+        submissionToEdit = existingSubmission
+        if let submission = existingSubmission {
+            _orgName = State(initialValue: submission.orgName ?? "")
+            _hoursString = State(initialValue: submission.hours.map { String($0) } ?? "")
+            _submissionDate = State(initialValue: submission.submissionDate)
+            _description = State(initialValue: submission.description ?? "")
+        }
+    }
     
     var body: some View {
         ZStack { // Apply global background
@@ -97,24 +113,95 @@ struct SubmissionFormView: View {
                     }
                     
                     Section("Signatures") {
-                        HStack(spacing: 15) { // Add spacing between signature pads
-                            SignaturePadView(
-                                title: "Supervisor",
-                                isSigning: $isSupervisorSigning,
-                                clearSignature: $clearSupervisorSignature,
-                                signatureImage: $supervisorSignatureImage,
-                                signaturePDF: $supervisorSignaturePDF,
-                                signaturePNGData: $supervisorSignaturePNGData
-                            )
+                        HStack(spacing: 15) {
+                            if previousSupervisorSignatureURL == nil {
+                                SignaturePadView(
+                                    title: "Supervisor",
+                                    isSigning: $isSupervisorSigning,
+                                    clearSignature: $clearSupervisorSignature,
+                                    signatureImage: $supervisorSignatureImage,
+                                    signaturePDF: $supervisorSignaturePDF,
+                                    signaturePNGData: $supervisorSignaturePNGData
+                                )
+                                
+                            } else {
+                                VStack {
+                                    Text("Supervisor signature")
+                                        .foregroundStyle(DSColor.textPrimary)
+                                    
+                                    AsyncImage(url: previousSupervisorSignatureURL) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            ProgressView() // Placeholder while image downloads
+                                                .frame(height: 150)
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(maxHeight: 150) // Limit display height
+                                                .border(DSColor.border) // Add a border
+                                        case .failure(let error):
+                                            // Display error if image loading fails
+                                            VStack {
+                                                Image(systemName: "photo.fill")
+                                                    .foregroundColor(DSColor.statusWarning) // Use DS warning color
+                                                Text("Could not load signature.")
+                                                    .font(.caption).foregroundColor(DSColor.textSecondary)
+                                                Text(error.localizedDescription)
+                                                    .font(.caption2).foregroundColor(DSColor.textSecondary)
+                                            }
+                                        @unknown default:
+                                            EmptyView() // Handle future cases
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding(.vertical)
+                                }
+                            }
                             
-                            SignaturePadView(
-                                title: "Pre-Approved",
-                                isSigning: $isPreApprovedSigning,
-                                clearSignature: $clearPreApprovedSignature,
-                                signatureImage: $preApprovedSignatureImage,
-                                signaturePDF: $preAppriovedSignaturePDF, // Corrected typo in binding
-                                signaturePNGData: $preApprovedSignaturePNGData
-                            )
+                            if previousPreAprrovedSignatureURL == nil {
+                                SignaturePadView(
+                                    title: "Pre-Approved",
+                                    isSigning: $isPreApprovedSigning,
+                                    clearSignature: $clearPreApprovedSignature,
+                                    signatureImage: $preApprovedSignatureImage,
+                                    signaturePDF: $preAppriovedSignaturePDF, // Corrected typo in binding
+                                    signaturePNGData: $preApprovedSignaturePNGData
+                                )
+                            } else {
+                                VStack {
+                                    Text("Pre-Approved signature")
+                                        .foregroundStyle(DSColor.textPrimary)
+                                    
+                                    AsyncImage(url: previousPreAprrovedSignatureURL) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            ProgressView() // Placeholder while image downloads
+                                                .frame(height: 150)
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(maxHeight: 150) // Limit display height
+                                                .border(DSColor.border) // Add a border
+                                        case .failure(let error):
+                                            // Display error if image loading fails
+                                            VStack {
+                                                Image(systemName: "photo.fill")
+                                                    .foregroundColor(DSColor.statusWarning) // Use DS warning color
+                                                Text("Could not load signature.")
+                                                    .font(.caption).foregroundColor(DSColor.textSecondary)
+                                                Text(error.localizedDescription)
+                                                    .font(.caption2).foregroundColor(DSColor.textSecondary)
+                                            }
+                                        @unknown default:
+                                            EmptyView() // Handle future cases
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                    .padding(.vertical)
+                                }
+                            }
                         }
                     }
                     
@@ -131,7 +218,13 @@ struct SubmissionFormView: View {
                         VStack{
                             
                             Button {
-                                Task { await saveprogress() }
+                                Task {
+                                    if let previousSubmission = submissionToEdit {
+                                        await saveprogress(previousSubmissionId: previousSubmission.id)
+                                    } else {
+                                        await saveprogress()
+                                    }
+                                }
                             } label: {
                                 HStack {
                                     Spacer()
@@ -154,7 +247,13 @@ struct SubmissionFormView: View {
                             
                             
                             Button {
-                                Task { await submitForm() }
+                                Task {
+                                    if previousSubmissionExists {
+                                        await submitForm(previousSubmissionId: submissionToEdit?.id)
+                                    } else {
+                                        await submitForm()
+                                    }
+                                }
                             } label: {
                                 HStack {
                                     Spacer()
@@ -173,7 +272,7 @@ struct SubmissionFormView: View {
                             .foregroundColor(DSColor.textOnAccent)
                             .cornerRadius(8)
                             .controlSize(.large) // If you want a larger button
-                            .disabled(isLoading || orgName.isEmpty || hoursString.isEmpty || supervisorSignatureImage == nil)
+//                            .disabled(isLoading || orgName.isEmpty || hoursString.isEmpty || supervisorSignatureImage == nil ||)
                         }
                     }
                 }
@@ -181,8 +280,33 @@ struct SubmissionFormView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .padding()
             }
+        } .task {
+            if submissionToEdit != nil {
+                await supervisorSignatureURL()
+                await preApprovedSignatureURL()
+                print("Existing submission: \(String(describing: submissionToEdit))")
+            }
         }
     }
+    
+    func supervisorSignatureURL() async {
+        do {
+            previousSupervisorSignatureURL = try await apiService.getSupervisorSignatureViewUrl(submissionId: submissionToEdit!.id)
+        } catch {
+            logger.log("Previous supervisor signature does not exist")
+            previousSupervisorSignatureURL = nil
+        }
+    }
+    
+    func preApprovedSignatureURL() async  {
+        do {
+            previousPreAprrovedSignatureURL = try await apiService.getPreApprovedSignatureViewUrl(submissionId: submissionToEdit!.id)
+        } catch {
+            logger.log("Previous pre approved signature does not exist")
+            previousPreAprrovedSignatureURL = nil
+        }
+    }
+    
     func isFormValid() -> Bool {
         guard !orgName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 || !hoursString.isEmpty else { return false }
@@ -191,7 +315,7 @@ struct SubmissionFormView: View {
         return true
     }
     
-    private func saveprogress() async {
+    private func saveprogress(previousSubmissionId: String? = nil) async {
         isLoading = true
         isError = false
         
@@ -204,13 +328,22 @@ struct SubmissionFormView: View {
             status: "DRAFT",
             description: description.isEmpty ? nil : description
         )
-        
+                
         do {
-            logger.info("Step 1: Creating initial submission record...")
-            let createdSubmission = try await apiService.submitHours(submissionData: submissionDTO)
-            let submissionId = createdSubmission.id
+            logger.info("Step 1: updating submission record...")
+            var submissionId: String
+            print("checkign id of submission we're sending \(String(describing: previousSubmissionId))")
+            if previousSubmissionExists && (previousSubmissionId != nil) {
+                let updatedSubmission = try await apiService.updateSubmission(submissionId: previousSubmissionId!, existingSubmission: submissionDTO)
+                submissionId = updatedSubmission.id
+            } else {
+                let newIncompleteSubmission = try await apiService.submitHours(submissionData: submissionDTO)
+                submissionId = newIncompleteSubmission.id
+            }
+            
             logger.info("Step 1 Successful! Submission ID: \(submissionId)")
-            submissionStatusMessage = "Record created, preparing signature upload..."
+            submissionStatusMessage = "Record updated, preparing signature upload..."
+            
             
             if let supervisorSignaturePNG = supervisorSignaturePNGData {
                 // --- Step 2: Get S3 upload URL ---
@@ -242,11 +375,6 @@ struct SubmissionFormView: View {
                 logger.info("Step 2 Successful! Got S3 key: \(preApprovedIploadInfo.key)")
                 submissionStatusMessage = "Uploading Pre Approved signature..."
                 
-                guard let preApprovedSignaturePNG = preApprovedSignaturePNGData else {
-                    logger.error("Pre Approved Signature not found!")
-                    return
-                }
-                
                 print("Data count of Pre Approved BEFORE passing to APIService: \(preApprovedSignaturePNG.count) bytes")
                 
                 // --- Step 3: Upload signature to S3 ---
@@ -265,9 +393,17 @@ struct SubmissionFormView: View {
                 isError = false
                 
                 // Wait briefly so user sees success message, then dismiss
-                try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+                try? await Task.sleep(nanoseconds: 500_000_000) // 1.5 seconds
                 dismiss() // Dismiss the sheet
             }
+            
+            // --- Final Success ---
+            submissionStatusMessage = "Submission complete!"
+            isError = false
+            
+            // Wait briefly so user sees success message, then dismiss
+            try? await Task.sleep(nanoseconds: 500_000_000) // 1.5 seconds
+            dismiss() // Dismiss the sheet
         } catch {
             logger.error("Submission failed: \(error.localizedDescription)")
             if let apiError = error as? APIError {
@@ -287,7 +423,8 @@ struct SubmissionFormView: View {
         }
     }
     
-    private func submitForm() async {
+    
+    private func submitForm(previousSubmissionId: String? = nil) async {
         guard isFormValid() else {
             submissionStatusMessage = "Please fill in Organization and valid positive Hours."
             isError = true
@@ -300,13 +437,13 @@ struct SubmissionFormView: View {
             return
         }
         
-        guard supervisorSignaturePNGData != nil else {
+        guard supervisorSignaturePNGData != nil || previousSupervisorSignatureURL != nil else {
             submissionStatusMessage = "Supervisor Signature is missing."
             isError = true
             return
         }
         
-        guard preApprovedSignaturePNGData != nil else {
+        guard preApprovedSignaturePNGData != nil || previousPreAprrovedSignatureURL != nil else {
             submissionStatusMessage = "Pre Approved Signature is missing."
             isError = true
             return
@@ -327,70 +464,82 @@ struct SubmissionFormView: View {
         
         print("Date being sent to backend: \(dateString)")
         do {
+            var submissionId: String
             // --- Step 1: Create initial submission record ---
             logger.info("Step 1: Creating initial submission record...")
-            let createdSubmission = try await apiService.submitHours(submissionData: initialSubmissionDTO)
-            let submissionId = createdSubmission.id
+            
+            if previousSubmissionExists && (previousSubmissionId != nil) {
+                let updatedSubmission = try await apiService.updateSubmission(submissionId: previousSubmissionId!, existingSubmission: initialSubmissionDTO)
+                submissionId = updatedSubmission.id
+            } else {
+                let newIncompleteSubmission = try await apiService.submitHours(submissionData: initialSubmissionDTO)
+                submissionId = newIncompleteSubmission.id
+            }
+            
+            
             logger.info("Step 1 Successful! Submission ID: \(submissionId)")
             submissionStatusMessage = "Record created, preparing signature upload..."
             
-            guard let supervisorSignaturePNG = supervisorSignaturePNGData else {
-                logger.error("Supervisor Signature not found!")
-                return
+            if previousSupervisorSignatureURL == nil {
+                guard let supervisorSignaturePNG = supervisorSignaturePNGData else {
+                    logger.error("Supervisor Signature not found!")
+                    return
+                }
+                
+                // --- Step 2: Get S3 upload URL ---
+                logger.info("Step 2: Getting Supervisor signature upload URL...")
+                let supervisorUploadInfo = try await apiService.getSupervisorSignatureUploadUrl(submissionId: submissionId)
+                logger.info("Step 2 Successful! Got S3 key: \(supervisorUploadInfo.key)")
+                submissionStatusMessage = "Uploading Supervisor signature..."
+                
+                
+                
+                print("Data count of Supervisor BEFORE passing to APIService: \(supervisorSignaturePNG.count) bytes")
+                
+                // --- Step 3: Upload signature to S3 ---
+                logger.info("Step 3: Uploading Supervisor signature data to S3...")
+                try await apiService.uploadSupervisorSignatureToS3(uploadUrl: supervisorUploadInfo.uploadUrl, imageData: supervisorSignaturePNG)
+                logger.info("Step 3 Successful! Supervisor Signature uploaded.")
+                submissionStatusMessage = "Saving Supervisor signature reference..."
+                
+                // --- Step 4: Save S3 key reference to backend ---
+                logger.info("Step 4: Saving signature reference to backend...")
+                _ = try await apiService.saveSupervisorSignatureReference(submissionId: submissionId, signatureKey: supervisorUploadInfo.key)
+                logger.info("Step 4 Successful! Signature reference saved.")
             }
             
-            // --- Step 2: Get S3 upload URL ---
-            logger.info("Step 2: Getting Supervisor signature upload URL...")
-            let supervisorUploadInfo = try await apiService.getSupervisorSignatureUploadUrl(submissionId: submissionId)
-            logger.info("Step 2 Successful! Got S3 key: \(supervisorUploadInfo.key)")
-            submissionStatusMessage = "Uploading Supervisor signature..."
-            
-            
-            
-            print("Data count of Supervisor BEFORE passing to APIService: \(supervisorSignaturePNG.count) bytes")
-            
-            // --- Step 3: Upload signature to S3 ---
-            logger.info("Step 3: Uploading Supervisor signature data to S3...")
-            try await apiService.uploadSupervisorSignatureToS3(uploadUrl: supervisorUploadInfo.uploadUrl, imageData: supervisorSignaturePNG)
-            logger.info("Step 3 Successful! Supervisor Signature uploaded.")
-            submissionStatusMessage = "Saving Supervisor signature reference..."
-            
-            // --- Step 4: Save S3 key reference to backend ---
-            logger.info("Step 4: Saving signature reference to backend...")
-            _ = try await apiService.saveSupervisorSignatureReference(submissionId: submissionId, signatureKey: supervisorUploadInfo.key)
-            logger.info("Step 4 Successful! Signature reference saved.")
-            
-            
-            // --- Step 2: Get S3 upload URL ---
-            logger.info("Step 2: Getting Pre Approved signature upload URL...")
-            let preApprovedIploadInfo = try await apiService.getPreApprovedSignatureUploadUrl(submissionId: submissionId)
-            logger.info("Step 2 Successful! Got S3 key: \(preApprovedIploadInfo.key)")
-            submissionStatusMessage = "Uploading Pre Approved signature..."
-            
-            guard let preApprovedSignaturePNG = preApprovedSignaturePNGData else {
-                logger.error("Pre Approved Signature not found!")
-                return
+            if previousPreAprrovedSignatureURL == nil {
+                // --- Step 2: Get S3 upload URL ---
+                logger.info("Step 2: Getting Pre Approved signature upload URL...")
+                let preApprovedIploadInfo = try await apiService.getPreApprovedSignatureUploadUrl(submissionId: submissionId)
+                logger.info("Step 2 Successful! Got S3 key: \(preApprovedIploadInfo.key)")
+                submissionStatusMessage = "Uploading Pre Approved signature..."
+                
+                guard let preApprovedSignaturePNG = preApprovedSignaturePNGData else {
+                    logger.error("Pre Approved Signature not found!")
+                    return
+                }
+                
+                print("Data count of Pre Approved BEFORE passing to APIService: \(preApprovedSignaturePNG.count) bytes")
+                
+                // --- Step 3: Upload signature to S3 ---
+                logger.info("Step 3: Uploading Pre Approved signature data to S3...")
+                try await apiService.uploadPreApprovedSignatureToS3(uploadUrl: preApprovedIploadInfo.uploadUrl, imageData: preApprovedSignaturePNG)
+                logger.info("Step 3 Successful! Pre Approved Signature uploaded.")
+                submissionStatusMessage = "Saving Pre Approved signature reference..."
+                
+                // --- Step 4: Save S3 key reference to backend ---
+                logger.info("Step 4: Saving signature reference to backend...")
+                _ = try await apiService.savePreApprovedSignatureReference(submissionId: submissionId, signatureKey: preApprovedIploadInfo.key)
+                logger.info("Step 4 Successful! Signature reference saved.")
             }
-            
-            print("Data count of Pre Approved BEFORE passing to APIService: \(preApprovedSignaturePNG.count) bytes")
-            
-            // --- Step 3: Upload signature to S3 ---
-            logger.info("Step 3: Uploading Pre Approved signature data to S3...")
-            try await apiService.uploadPreApprovedSignatureToS3(uploadUrl: preApprovedIploadInfo.uploadUrl, imageData: preApprovedSignaturePNG)
-            logger.info("Step 3 Successful! Pre Approved Signature uploaded.")
-            submissionStatusMessage = "Saving Pre Approved signature reference..."
-            
-            // --- Step 4: Save S3 key reference to backend ---
-            logger.info("Step 4: Saving signature reference to backend...")
-            _ = try await apiService.savePreApprovedSignatureReference(submissionId: submissionId, signatureKey: preApprovedIploadInfo.key)
-            logger.info("Step 4 Successful! Signature reference saved.")
             
             // --- Final Success ---
             submissionStatusMessage = "Submission complete!"
             isError = false
             
             // Wait briefly so user sees success message, then dismiss
-            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+            try? await Task.sleep(nanoseconds: 500_000_000) // 1.5 seconds
             dismiss() // Dismiss the sheet
             
         } catch {
@@ -420,83 +569,4 @@ struct SubmissionFormView: View {
     //        signatureImage = nil
     //        signaturePNGData = nil
     //    }
-}
-
-struct SignaturePadView: View {
-    let title: String
-    @Binding var isSigning: Bool
-    @Binding var clearSignature: Bool
-    @Binding var signatureImage: UIImage?
-    @Binding var signaturePDF: Data?
-    @Binding var signaturePNGData: Data?
-
-    var body: some View {
-        VStack(alignment: .center) {
-            Text(title)
-                .font(.headline) // Consider DSFont.headline
-                .foregroundColor(DSColor.textPrimary)
-
-            ZStack(alignment: isSigning ? .topTrailing : .center) { // Changed alignment for clear button
-                SignatureViewContainer(
-                    clearSignature: $clearSignature,
-                    signatureImage: $signatureImage,
-                    pdfSignature: $signaturePDF,
-                    signaturePNGData: $signaturePNGData
-                )
-                .disabled(!isSigning)
-                .frame(height: 150) // Adjusted height
-                .frame(maxWidth: .infinity)
-                .background(DSColor.backgroundSecondary) // Or DSColor.backgroundSurface, ensure it's not pure white if main bg is also white
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(isSigning ? DSColor.accent : DSColor.border, lineWidth: isSigning ? 3 : 1) // Dynamic border
-                )
-
-                if signatureImage != nil && !isSigning { // Show "Edit" if image exists and not currently signing
-                    Button(action: {
-                        isSigning = true
-                    }) {
-                        Image(systemName: "pencil.circle.fill")
-                            .resizable()
-                            .foregroundColor(DSColor.accent)
-                            .frame(width: 30, height: 30)
-                            .background(DSColor.backgroundPrimary.opacity(0.8)) // So it stands out
-                            .clipShape(Circle())
-                    }
-                } else if isSigning {
-                    Button(action: {
-                        clearSignature = true // This will trigger the clear in SignatureViewContainer
-                        signatureImage = nil // Also clear the image binding here
-                        signaturePDF = nil
-                        signaturePNGData = nil
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(DSColor.statusError)
-                            .padding(5) // Padding around the clear button
-                            .background(DSColor.backgroundSecondary.opacity(0.7))
-                            .clipShape(Circle())
-                    }
-                    .padding(5) // Padding for the button itself for easier tapping
-                } else { // No image, not signing -> "Sign Here"
-                    Button(action: {
-                        isSigning = true
-                    }) {
-                        VStack(alignment: .center, spacing: 4) { // Adjusted spacing
-                            Image(systemName: "pencil.and.scribble") // More relevant icon
-                                .resizable()
-                                .scaledToFit()
-                                .foregroundColor(DSColor.textSecondary) // Changed from .black
-                                .frame(width: 30, height: 30) // Adjusted size
-                            Text("Sign here")
-                                .font(.caption) // Consider DSFont.caption
-                                .foregroundColor(DSColor.textPlaceholder) // Changed from .gray
-                        }
-                        .padding() // Add padding to make the tappable area larger
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity) // Make button fill ZStack area
-                }
-            }
-        }
-    }
 }

@@ -52,7 +52,7 @@ struct IncompleteSubmissionsView: View {
                         } else {
                             ForEach(viewModel.incompleteSubmissions) { submission in
                                 NavigationLink {
-                                    SubmissionDetailView(submission: submission)
+                                    SubmissionFormView(existingSubmission: submission)
                                 } label: {
                                     SubmissionRow(submission: submission)
                                 }
@@ -61,6 +61,9 @@ struct IncompleteSubmissionsView: View {
                     }
                     .listStyle(.plain)
                     .refreshable {
+                        await viewModel.fetchUserSubmissions()
+                    }
+                    .task {
                         await viewModel.fetchUserSubmissions()
                     }
                 }
