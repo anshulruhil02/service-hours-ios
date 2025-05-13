@@ -1,5 +1,3 @@
-// Views/HomeView.swift
-
 import SwiftUI
 import Clerk
 import os.log
@@ -31,7 +29,7 @@ struct HomeView: View {
                     case .userinfo:
                         UserInfoView()
                     case .exportPDF:
-                        ExportView()
+                        ExportView(viewModel: viewModel)
                     }
                 }
                 .toolbar {

@@ -25,7 +25,8 @@ class HomeViewModel: ObservableObject {
     @Published var showingShareSheet: Bool = false // Controls presentation of ShareLink's sheet
     @Published var isGeneratingReport: Bool = false // Specific loading state for report
     @Published var reportError: String? = nil
-    @Published var path = NavigationPath()
+    @Published var pdfReportFileUrl: URL? = nil
+
     
     private let apiService = APIService()
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "HomeViewModel")
@@ -69,30 +70,43 @@ class HomeViewModel: ObservableObject {
     }
     
     func generateAndPreparePdfReport() async {
-        guard !isGeneratingReport else { return } // Prevent multiple calls
-        
-        logger.info("Generating PDF report...")
-        isGeneratingReport = true
-        reportError = nil
-        pdfReportData = nil // Clear previous data
-        
-        do {
-            let fetchedPdfData = try await apiService.downloadPdfReport()
-            self.pdfReportData = fetchedPdfData
-            self.showingShareSheet = true // Trigger the share sheet in the View
-            logger.info("PDF report data fetched successfully, ready for sharing.")
-        } catch let error as APIError {
-            logger.error("Failed to generate PDF report: \(error.localizedDescription)")
-            switch error {
-            case .unauthorized: reportError = "Authentication error. Please sign out and sign in."
-            default: reportError = "Could not generate report. Please try again."
+            guard !isGeneratingReport else { return }
+            
+            logger.info("Generating PDF report...")
+            isGeneratingReport = true
+            reportError = nil
+            pdfReportFileUrl = nil // Clear previous URL
+
+            do {
+                let fetchedPdfData = try await apiService.downloadPdfReport()
+                
+                // --- Save Data to a Temporary File ---
+                let tempDir = FileManager.default.temporaryDirectory
+                // Use a unique name, or a consistent one if you want to overwrite
+                let fileName = "CommunityHoursReport-\(UUID().uuidString).pdf"
+                let fileURL = tempDir.appendingPathComponent(fileName)
+                
+                try fetchedPdfData.write(to: fileURL) // Write the data to the file
+                
+                self.pdfReportFileUrl = fileURL // Store the URL
+                // --- End Save Data ---
+                
+                self.showingShareSheet = true // Trigger the share sheet in the View
+                logger.info("PDF report saved to temporary file: \(fileURL.path) and ready for sharing.")
+
+            } catch let error as APIError {
+                logger.error("Failed to generate PDF report: \(error.localizedDescription)")
+                // ... (your existing error handling for APIError) ...
+                switch error {
+                    case .unauthorized: reportError = "Authentication error..."
+                    default: reportError = "Could not generate report..."
+                }
+                dump(error)
+            } catch { // Catch errors from file writing or other unexpected errors
+                logger.error("Unexpected error generating PDF report or saving to file: \(error.localizedDescription)")
+                reportError = "An unexpected error occurred while preparing the report."
+                dump(error)
             }
-            dump(error)
-        } catch {
-            logger.error("Unexpected error generating PDF report: \(error.localizedDescription)")
-            reportError = "An unexpected error occurred."
-            dump(error)
+            isGeneratingReport = false
         }
-        isGeneratingReport = false
-    }
 }
