@@ -20,16 +20,54 @@ class HomeViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var exportPDF = false
     
+    
     // --- NEW Published Properties for PDF ---
     @Published var pdfReportData: Data? = nil // Holds the fetched PDF data
     @Published var showingShareSheet: Bool = false // Controls presentation of ShareLink's sheet
     @Published var isGeneratingReport: Bool = false // Specific loading state for report
     @Published var reportError: String? = nil
     @Published var pdfReportFileUrl: URL? = nil
+    
+    // Add a new published property for the user profile
+    @Published var userProfile: UserProfile?
+    @Published var isLoadingProfile: Bool = false
+    @Published var profileError: String?
 
     
     private let apiService = APIService()
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "HomeViewModel")
+    
+    func fetchUserProfile() async {
+        guard !isLoadingProfile else { return }
+        
+        isLoadingProfile = true
+        profileError = nil
+        
+        do {
+            let fetchedProfile = try await apiService.fetchUserProfile()
+            self.userProfile = fetchedProfile
+            logger.info("Successfully fetched user profile for \(fetchedProfile.name)")
+        } catch is CancellationError {
+            logger.info("Fetch user profile task was cancelled. This is normal.")
+        } catch let error as APIError {
+            switch error {
+            case .unauthorized:
+                profileError = "Authentication error. Please sign out and sign in again."
+            case .noActiveSession, .tokenUnavailable:
+                profileError = "Not logged in or session invalid."
+                // ... handle other error cases ...
+            default:
+                profileError = "Failed to load user profile. Please try again."
+            }
+            logger.error("API error fetching user profile: \(error.localizedDescription)")
+        } catch {
+            logger.error("Unexpected error fetching user profile: \(error.localizedDescription)")
+            profileError = "An unexpected error occurred while loading user profile."
+        }
+        
+        isLoadingProfile = false
+    }
+    
     
     func fetchUserSubmissions() async {
         do {

@@ -58,13 +58,13 @@ struct SignUpView: View {
                     Button("Verify Email") {
                         Task { await verify(code: code) }
                     }
-                    frame(maxWidth: .infinity)
-                        .padding()
-                        .background(DSColor.accent)
-                        .foregroundColor(DSColor.textOnAccent)
-                        .cornerRadius(8)
-                        .disabled(code.isEmpty) // Example of disabling
-                        .opacity(code.isEmpty ? 0.7 : 1.0)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(DSColor.accent)
+                    .foregroundColor(DSColor.textOnAccent)
+                    .cornerRadius(8)
+                    .disabled(code.isEmpty) // Example of disabling
+                    .opacity(code.isEmpty ? 0.7 : 1.0)
                     
                 } else {
                     Group {
