@@ -43,7 +43,7 @@ struct MenuView: View {
                     
                     MenuDivider()
                     
-                    MenuItem(iconName: "person.circle.fill", title: "User Info") {
+                    MenuItem(iconName: "person.circle.fill", title: "User Profile") {
                         logger.info("User info tapped")
                         selectedMenuItem = .userinfo
                         withAnimation(.easeInOut) {

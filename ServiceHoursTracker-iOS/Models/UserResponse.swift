@@ -15,9 +15,10 @@ struct UserResponse: Codable, Identifiable {
     let name: String
     let schoolId: String?
     let oen: String?
+    let principal: String?
+    let dateOfBirth: Date?
     let createdAt: Date
     let updatedAt: Date
     let studentSignatureUrl: String?
     let parentSignatureUrl: String?
-    
 }

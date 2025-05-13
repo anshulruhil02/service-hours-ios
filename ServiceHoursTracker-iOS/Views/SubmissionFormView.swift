@@ -64,13 +64,6 @@ struct SubmissionFormView: View {
     private let apiService = APIService()
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "SubmissionFormView")
     
-    // Formatter for converting Date to ISO8601 String
-    private var isoDateFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds] // Matches format like 2023-10-27T10:15:30.123Z
-        return formatter
-    }()
-    
     init(existingSubmission: SubmissionResponse? = nil) {
         submissionToEdit = existingSubmission
         if let submission = existingSubmission {
@@ -319,7 +312,7 @@ struct SubmissionFormView: View {
         isLoading = true
         isError = false
         
-        let dateString = isoDateFormatter.string(from: submissionDate)
+        let dateString = AppDateFormatter.isoDateFormatter.string(from: submissionDate)
         
         let submissionDTO = CreateSubmissionDto(
             orgName: orgName,
@@ -445,7 +438,7 @@ struct SubmissionFormView: View {
         isLoading = true
         isError = false
         print("Date format before transformation \(submissionDate)")
-        let dateString = isoDateFormatter.string(from: submissionDate)
+        let dateString = AppDateFormatter.isoDateFormatter.string(from: submissionDate)
         
         let initialSubmissionDTO = CreateSubmissionDto(
             orgName: orgName,

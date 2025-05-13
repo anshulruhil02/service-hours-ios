@@ -27,7 +27,7 @@ struct HomeView: View {
                     case .submissions:
                         SubmissionsView(viewModel: viewModel, isMenuOpen: $isMenuOpen)
                     case .userinfo:
-                        UserInfoView()
+                        UserInfoView(viewModel: viewModel)
                     case .exportPDF:
                         ExportView(viewModel: viewModel)
                     }

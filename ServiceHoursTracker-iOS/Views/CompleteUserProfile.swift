@@ -15,6 +15,8 @@ struct CompleteUserProfileView: View {
     @State private var oen: String = ""
     @State private var schoolId: String = ""
     @State private var isLoading: Bool = false
+    @State private var principal: String = ""
+    @State private var dateOfBirth: Date = Date()
     @State private var errorMessage: String?
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppStateManager
@@ -42,7 +44,14 @@ struct CompleteUserProfileView: View {
                         TextField("OEN Number", text: $oen)
                             .keyboardType(.numberPad)
                         
-                        TextField("School ID", text: $schoolId)
+                        TextField("School", text: $schoolId)
+                        
+                        TextField("Principal", text: $principal)
+                        
+                        DatePicker("Date of Birth", selection: $dateOfBirth, displayedComponents: [.date])
+                            .datePickerStyle(.compact)
+                            .tint(DSColor.accent)
+                            .foregroundColor(DSColor.textPrimary)
                     }
                     .padding()
                     .background(DSColor.backgroundSecondary) // Using backgroundSecondary as a surface for inputs
@@ -102,28 +111,21 @@ struct CompleteUserProfileView: View {
         isLoading = true
         errorMessage = nil
         logger.info("Attempting to submit profile with OEN: \(oen), SchoolID: \(schoolId)")
-
+        
+        let dob = AppDateFormatter.isoDateFormatter.string(from: dateOfBirth)
         // Create the DTO to send to the backend
-        let profileData = UpdateUserProfileDto(oen: oen, schoolId: schoolId)
+        let profileData = UpdateUserProfileDto(
+            oen: oen,
+            schoolId: schoolId,
+            principal: principal,
+            dateOfBirth: dob)
 
         do {
             // Call the APIService method to update the profile
             let updatedProfile = try await apiService.updateUserProfile(profileData: profileData)
             logger.info("Profile update successful for user: \(updatedProfile.email)")
-            
-            // --- Profile update successful! ---
-            // Now trigger navigation to the main app content area.
-            // Choose ONE of the following methods based on your navigation setup:
-            
-            // Option 1: Dismiss if presented modally
              dismiss()
-            
-            // Option 2: Update binding passed from parent
-            // isOnboardingComplete = true
-            
-            // Option 3: Update global app state
             appState.profileCompletionSuccessful()
-
         } catch {
             logger.error("Profile update failed: \(error.localizedDescription)")
             // Display error message to the user

@@ -10,4 +10,6 @@ import Foundation
 struct UpdateUserProfileDto: Codable {
     let oen: String
     let schoolId: String
+    let principal: String
+    let dateOfBirth: String
 }

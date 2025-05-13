@@ -38,7 +38,7 @@ class AppStateManager: ObservableObject {
     
     // Published properties will trigger UI updates when they change
     @Published var navigationState: AppNavigationState = .loading
-    @Published var userProfile: UserProfile? = nil // Store the fetched profile
+    @Published var userProfile: UserResponse? = nil // Store the fetched profile
     
     private let apiService = APIService() // Instance of your API service
     

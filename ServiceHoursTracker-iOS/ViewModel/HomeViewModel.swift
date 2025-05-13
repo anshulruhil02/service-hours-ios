@@ -29,7 +29,7 @@ class HomeViewModel: ObservableObject {
     @Published var pdfReportFileUrl: URL? = nil
     
     // Add a new published property for the user profile
-    @Published var userProfile: UserProfile?
+    @Published var userProfile: UserResponse?
     @Published var isLoadingProfile: Bool = false
     @Published var profileError: String?
 
