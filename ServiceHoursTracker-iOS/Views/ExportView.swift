@@ -149,7 +149,7 @@ struct ExportView: View {
                     logger.info("Generate Report button tapped.")
                     await viewModel.generateAndPreparePdfReport()
                 }
-            } label: { /* ... Button Label with Loading State ... */
+            } label: {
                 HStack {
                     Spacer()
                     if viewModel.isGeneratingReport { ProgressView().tint(.white) }
@@ -257,6 +257,7 @@ struct ExportView: View {
         }
         
         isError = false
+        await studentSignatureURL()
     }
     
     private func saveParentSignature() async {
@@ -310,6 +311,7 @@ struct ExportView: View {
         }
         
         isError = false
+        await parentSignatureURL()
     }
     
     private func studentSignatureURL() async {
