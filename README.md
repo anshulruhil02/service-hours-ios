@@ -4,7 +4,7 @@
 
 **Decision/Tradeoff:**
 
-- **Options Considered:**
+**Options Considered:**
     1. Deploying backend directly on EC2 instances
     2. Using AWS Elastic Beanstalk for simplified deployment
     3. Using containerization with ECS/Fargate for scalability and isolation
