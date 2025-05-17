@@ -10,7 +10,7 @@ import Clerk
 import os.log
 
 class APIService {
-    private let baseURL = "http://localhost:3000" // Adjust as needed
+    private let baseURL = "http://3.209.80.245:3000"
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "APIService") // Optional logger
     
     // Function to fetch the user profile from /users/me FOR LIVE APP USE

@@ -12,8 +12,8 @@ struct DSInputFieldStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding()
-            .background(DSColor.backgroundSecondary) // Or DSColor.backgroundSurface if you have it
-            .foregroundColor(DSColor.textPrimary)   // For the typed text
+            .background(DSColor.backgroundSecondary)
+            .foregroundColor(DSColor.textPrimary)
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
@@ -28,11 +28,19 @@ extension View {
     }
 }
 
+enum Field: Hashable {
+    case orgName, hours, telephone, supervisorName, description
+}
+
 struct SubmissionFormView: View {
     @State private var orgName: String = ""
     @State private var hoursString: String = "" // Collect hours as String for flexible input
+    @State private var telephone: String = ""
+    @State private var supervisorName: String = ""
     @State private var submissionDate: Date = Date() // Default to today
     @State private var description: String = ""
+    @FocusState private var focusedField: Field?
+    
     // State for UI feedback
     @State private var isLoading: Bool = false
     @State private var submissionStatusMessage: String?
@@ -54,6 +62,9 @@ struct SubmissionFormView: View {
     var submissionToEdit: SubmissionResponse?
     var previousSubmissionExists: Bool {
         return submissionToEdit != nil
+    }
+    var isAnySigning: Bool {
+        return isSupervisorSigning || isPreApprovedSigning
     }
     @State var previousSupervisorSignatureURL: URL?
     @State var previousPreAprrovedSignatureURL: URL?
@@ -77,13 +88,26 @@ struct SubmissionFormView: View {
     var body: some View {
         ZStack { // Apply global background
             DSColor.backgroundPrimary.ignoresSafeArea()
+                .ignoresSafeArea()
             NavigationView {
-                VStack(alignment: .center, spacing: 10) {
-                    Section("Submission details") {
+                ScrollView {
+                    VStack(alignment: .center, spacing: 10) {
                         TextField("Organization name", text: $orgName)
+                            .focused($focusedField, equals: .orgName)
                             .dsInputFieldStyle()
+                        
                         TextField("Hours completed", text: $hoursString)
                             .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: .hours)
+                            .dsInputFieldStyle()
+                        
+                        TextField("Telephone", text: $telephone)
+                            .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: .telephone)
+                            .dsInputFieldStyle()
+                        
+                        TextField("Supervisor name", text: $supervisorName)
+                            .focused($focusedField, equals: .supervisorName)
                             .dsInputFieldStyle()
                         
                         DatePicker("Date Completed", selection: $submissionDate, displayedComponents: [.date])
@@ -97,15 +121,23 @@ struct SubmissionFormView: View {
                                 .foregroundStyle(DSColor.textSecondary)
                             TextEditor(text: $description)
                                 .frame(height: 100)
+                                .focused($focusedField, equals: .description)
                                 .foregroundColor(DSColor.textPrimary) // For typed text
                                 .scrollContentBackground(.hidden)
                                 .background(DSColor.backgroundSecondary) // Or DSColor.backgroundSurface
                                 .cornerRadius(8)
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(DSColor.border, lineWidth:1))
                         }
-                    }
-                    
-                    Section("Signatures") {
+                        .padding()
+                        .toolbar {
+                            ToolbarItemGroup(placement: .keyboard) {
+                                Spacer()
+                                Button("Done") {
+                                    focusedField = nil
+                                }
+                            }
+                        }
+                        
                         HStack(spacing: 15) {
                             if previousSupervisorSignatureURL == nil {
                                 SignaturePadView(
@@ -133,6 +165,7 @@ struct SubmissionFormView: View {
                                                 .scaledToFit()
                                                 .frame(maxHeight: 150) // Limit display height
                                                 .border(DSColor.border) // Add a border
+                                                .background(.white)
                                         case .failure(let error):
                                             // Display error if image loading fails
                                             VStack {
@@ -177,6 +210,7 @@ struct SubmissionFormView: View {
                                                 .scaledToFit()
                                                 .frame(maxHeight: 150) // Limit display height
                                                 .border(DSColor.border) // Add a border
+                                                .background(.white)
                                         case .failure(let error):
                                             // Display error if image loading fails
                                             VStack {
@@ -196,84 +230,85 @@ struct SubmissionFormView: View {
                                 }
                             }
                         }
-                    }
-                    
-                    
-                    if let statusMessage = submissionStatusMessage {
-                        Text(statusMessage)
-                            .font(.caption) // Consider DSFont.caption
-                            .foregroundColor(isError ? DSColor.statusError : DSColor.statusSuccess)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 5)
-                    }
-                    
-                    Section {
-                        VStack{
-                            
-                            Button {
-                                Task {
-                                    if let previousSubmission = submissionToEdit {
-                                        await saveprogress(previousSubmissionId: previousSubmission.id)
-                                    } else {
-                                        await saveprogress()
+                        
+                        
+                        if let statusMessage = submissionStatusMessage {
+                            Text(statusMessage)
+                                .font(.caption) // Consider DSFont.caption
+                                .foregroundColor(isError ? DSColor.statusError : DSColor.statusSuccess)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 5)
+                        }
+                        
+                        Section {
+                            VStack{
+                                
+                                Button {
+                                    Task {
+                                        if let previousSubmission = submissionToEdit {
+                                            await saveprogress(previousSubmissionId: previousSubmission.id)
+                                        } else {
+                                            await saveprogress()
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        Spacer()
+                                        if isLoading {
+                                            ProgressView()
+                                        } else {
+                                            Text("Save Progress")
+                                                .fontWeight(.semibold)
+                                        }
+                                        Spacer()
                                     }
                                 }
-                            } label: {
-                                HStack {
-                                    Spacer()
-                                    if isLoading {
-                                        ProgressView()
-                                    } else {
-                                        Text("Save Progress")
-                                            .fontWeight(.semibold)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(DSColor.primary)
+                                .foregroundColor(DSColor.textOnPrimary)
+                                .cornerRadius(8)
+                                .controlSize(.large)
+                                .disabled(isLoading)
+                                
+                                
+                                Button {
+                                    Task {
+                                        if previousSubmissionExists {
+                                            await submitForm(previousSubmissionId: submissionToEdit?.id)
+                                        } else {
+                                            await submitForm()
+                                        }
                                     }
-                                    Spacer()
+                                } label: {
+                                    HStack {
+                                        Spacer()
+                                        if isLoading {
+                                            ProgressView()
+                                        } else {
+                                            Text("Submit Hours")
+                                                .fontWeight(.semibold)
+                                        }
+                                        Spacer()
+                                    }
                                 }
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(DSColor.accent)
+                                .foregroundColor(DSColor.textOnAccent)
+                                .cornerRadius(8)
+                                .controlSize(.large)
                             }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(DSColor.primary)
-                            .foregroundColor(DSColor.textOnPrimary)
-                            .cornerRadius(8)
-                            .controlSize(.large)
-                            .disabled(isLoading)
-                            
-                            
-                            Button {
-                                Task {
-                                    if previousSubmissionExists {
-                                        await submitForm(previousSubmissionId: submissionToEdit?.id)
-                                    } else {
-                                        await submitForm()
-                                    }
-                                }
-                            } label: {
-                                HStack {
-                                    Spacer()
-                                    if isLoading {
-                                        ProgressView()
-                                    } else {
-                                        Text("Submit Hours")
-                                            .fontWeight(.semibold)
-                                    }
-                                    Spacer()
-                                }
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(DSColor.accent)
-                            .foregroundColor(DSColor.textOnAccent)
-                            .cornerRadius(8)
-                            .controlSize(.large) // If you want a larger button
-//                            .disabled(isLoading || orgName.isEmpty || hoursString.isEmpty || supervisorSignatureImage == nil ||)
                         }
                     }
+                    .padding()
                 }
-                .navigationTitle("Log New Hours")
+                .scrollDisabled(isAnySigning)
+                .navigationTitle(previousSubmissionExists ? "Edit Service Hours" : "Log Service Hours")
                 .navigationBarTitleDisplayMode(.inline)
-                .padding()
             }
-        } .task {
+        }
+        .task {
             if submissionToEdit != nil {
                 await supervisorSignatureURL()
                 await preApprovedSignatureURL()
@@ -317,11 +352,13 @@ struct SubmissionFormView: View {
         let submissionDTO = CreateSubmissionDto(
             orgName: orgName,
             hours: Double(hoursString),
+            telephone: Double(telephone),
+            supervisorName: supervisorName,
             submissionDate: dateString,
             status: "DRAFT",
             description: description.isEmpty ? nil : description
         )
-                
+        
         do {
             logger.info("Step 1: updating submission record...")
             var submissionId: String
@@ -380,7 +417,7 @@ struct SubmissionFormView: View {
                 logger.info("Step 4: Saving signature reference to backend...")
                 _ = try await apiService.savePreApprovedSignatureReference(submissionId: submissionId, signatureKey: preApprovedIploadInfo.key)
                 logger.info("Step 4 Successful! Signature reference saved.")
-
+                
             }
             
             // --- Final Success ---
@@ -391,6 +428,7 @@ struct SubmissionFormView: View {
             try? await Task.sleep(nanoseconds: 500_000_000) // 1.5 seconds
             dismiss() // Dismiss the sheet
         } catch {
+            isLoading = false
             logger.error("Submission failed: \(error.localizedDescription)")
             if let apiError = error as? APIError {
                 switch apiError {
@@ -423,6 +461,12 @@ struct SubmissionFormView: View {
             return
         }
         
+        guard let telephoneConverted = Double(telephone) else {
+            isError = true
+            submissionStatusMessage = "Please fill in valid telephone number"
+            return
+        }
+        
         guard supervisorSignaturePNGData != nil || previousSupervisorSignatureURL != nil else {
             submissionStatusMessage = "Supervisor Signature is missing."
             isError = true
@@ -443,6 +487,8 @@ struct SubmissionFormView: View {
         let initialSubmissionDTO = CreateSubmissionDto(
             orgName: orgName,
             hours: hours,
+            telephone: telephoneConverted,
+            supervisorName: supervisorName,
             submissionDate: dateString,
             status: "SUBMITTED",
             description: description.isEmpty ? nil : description
@@ -529,6 +575,7 @@ struct SubmissionFormView: View {
             dismiss() // Dismiss the sheet
             
         } catch {
+            isLoading = false
             logger.error("Submission failed: \(error.localizedDescription)")
             if let apiError = error as? APIError {
                 switch apiError {

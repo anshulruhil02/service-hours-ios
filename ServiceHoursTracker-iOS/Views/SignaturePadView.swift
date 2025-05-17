@@ -68,6 +68,7 @@ struct SignaturePadView: View {
                         }
                     } else if isSigning {
                         Button(action: {
+                            isSigning = false
                             clearSignature = true // This will trigger the clear in SignatureViewContainer
                             signatureImage = nil // Also clear the image binding here
                             signaturePDF = nil

@@ -10,6 +10,8 @@ import Foundation
 struct CreateSubmissionDto: Codable {
     let orgName: String?
     let hours: Double? // Use Double to match Float in Prisma/potential decimals
+    let telephone: Double?
+    let supervisorName: String?
     let submissionDate: String? // Send as ISO8601 string
     let status: String
     let description: String?
@@ -17,15 +19,17 @@ struct CreateSubmissionDto: Codable {
 }
 
 struct SubmissionResponse: Codable, Identifiable {
-     let id: String
-     let orgName: String?
-     let hours: Double?
-     let submissionDate: Date
-     let description: String?
-     let status: String
-     let createdAt: Date
-     let updatedAt: Date
-     let studentId: String
+    let id: String
+    let orgName: String?
+    let hours: Double?
+    let telephone: Double?
+    let supervisorName: String?
+    let submissionDate: Date
+    let description: String?
+    let status: String
+    let createdAt: Date
+    let updatedAt: Date
+    let studentId: String
 }
 
 struct SaveSignatureDto: Codable {

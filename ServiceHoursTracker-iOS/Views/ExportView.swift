@@ -13,164 +13,282 @@ import os.log
 struct ExportView: View {
     @ObservedObject var viewModel: HomeViewModel
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "ExportView")
+    
+    // Signature states
     @State var isStudentSigning: Bool = false
     @State var clearStudentSignature: Bool = false
     @State var studentSignatureImage: UIImage? = nil
     @State var studentSignaturePDF: Data? = nil
     @State var studentSignaturePNGData: Data? = nil
-    @State private var signatureStatusMessage: String?
-    @State private var isError: Bool = false
+    
     @State var isParentSigning: Bool = false
     @State var clearParentSignature: Bool = false
     @State var parentSignatureImage: UIImage? = nil
     @State var parentSignaturePDF: Data? = nil
     @State var parentSignaturePNGData: Data? = nil
+    
+    @State private var signatureStatusMessage: String?
+    @State private var isError: Bool = false
     @State var previousStudentSignatureURL: URL?
     @State var previousParentSignatureURL: URL?
+    
     private let apiService = APIService()
     
+    // Computed property to check if any signature field is active
+    var isAnySigning: Bool {
+        return isStudentSigning || isParentSigning
+    }
     
     var body: some View {
-        VStack {
-            if previousStudentSignatureURL == nil {
-                SignaturePadView(
-                    title: "Student Signature",
-                    isSigning: $isStudentSigning,
-                    clearSignature: $clearStudentSignature,
-                    signatureImage: $studentSignatureImage,
-                    signaturePDF: $studentSignaturePDF,
-                    signaturePNGData: $studentSignaturePNGData
-                )
-                
-                Button("Submit student signature") {
-                    Task {
-                        await saveStudentSignature()
-                    }
-                }
-            } else {
-                VStack {
-                    Text("Supervisor signature")
-                        .foregroundStyle(DSColor.textPrimary)
+        ScrollView {
+            VStack(spacing: 24) {
+                // Title and instructions
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Signatures Required")
+                        .font(.headline)
+                        .foregroundColor(DSColor.textPrimary)
                     
-                    AsyncImage(url: previousStudentSignatureURL) { phase in
-                        switch phase {
-                        case .empty:
-                            ProgressView() // Placeholder while image downloads
-                                .frame(height: 150)
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxHeight: 150) // Limit display height
-                                .border(DSColor.border) // Add a border
-                                .background(.white)
-                        case .failure(let error):
-                            // Display error if image loading fails
-                            VStack {
-                                Image(systemName: "photo.fill")
-                                    .foregroundColor(DSColor.statusWarning) // Use DS warning color
-                                Text("Could not load signature.")
-                                    .font(.caption).foregroundColor(DSColor.textSecondary)
-                                Text(error.localizedDescription)
-                                    .font(.caption2).foregroundColor(DSColor.textSecondary)
-                            }
-                        @unknown default:
-                            EmptyView() // Handle future cases
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical)
+                    Text("Please provide both student and parent/guardian signatures to generate your service hours report.")
+                        .font(.subheadline)
+                        .foregroundColor(DSColor.textSecondary)
                 }
-            }
-            
-            
-            if previousParentSignatureURL == nil {
-                SignaturePadView(
-                    title: "Parent/Guardian Signature",
-                    isSigning: $isParentSigning,
-                    clearSignature: $clearParentSignature,
-                    signatureImage: $parentSignatureImage,
-                    signaturePDF: $parentSignaturePDF,
-                    signaturePNGData: $parentSignaturePNGData
-                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 8)
                 
-                Button("Submit parent/guardian signature") {
-                    Task {
-                        await saveParentSignature()
-                    }
-                }
-            }else {
-                VStack {
-                    Text("Parent/Gurdian signature")
-                        .foregroundStyle(DSColor.textPrimary)
+                // Student Signature Section
+                VStack(spacing: 12) {
+                    Text("Student Signature")
+                        .font(.headline)
+                        .foregroundColor(DSColor.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    AsyncImage(url: previousParentSignatureURL) { phase in
-                        switch phase {
-                        case .empty:
-                            ProgressView() // Placeholder while image downloads
-                                .frame(height: 150)
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFit()
-                                .frame(maxHeight: 150) // Limit display height
-                                .border(DSColor.border) // Add a border
-                                .background(.white)
-                        case .failure(let error):
-                            // Display error if image loading fails
-                            VStack {
-                                Image(systemName: "photo.fill")
-                                    .foregroundColor(DSColor.statusWarning) // Use DS warning color
-                                Text("Could not load signature.")
-                                    .font(.caption).foregroundColor(DSColor.textSecondary)
-                                Text(error.localizedDescription)
-                                    .font(.caption2).foregroundColor(DSColor.textSecondary)
+                    if previousStudentSignatureURL == nil {
+                        SignaturePadView(
+                            title: "Student",
+                            isSigning: $isStudentSigning,
+                            clearSignature: $clearStudentSignature,
+                            signatureImage: $studentSignatureImage,
+                            signaturePDF: $studentSignaturePDF,
+                            signaturePNGData: $studentSignaturePNGData
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DSColor.border, lineWidth: 1)
+                        )
+                        
+                        Button {
+                            Task {
+                                await saveStudentSignature()
                             }
-                        @unknown default:
-                            EmptyView() // Handle future cases
+                        } label: {
+                            Text("Save Student Signature")
+                                .fontWeight(.medium)
+                                .frame(maxWidth: .infinity)
                         }
+                        .buttonStyle(.borderedProminent)
+                        .tint(studentSignaturePNGData != nil ? DSColor.accent : DSColor.backgroundSecondary)
+                        .foregroundColor(studentSignaturePNGData != nil ? DSColor.textOnAccent : DSColor.textSecondary)
+                        .disabled(studentSignaturePNGData == nil)
+                        .cornerRadius(8)
+                        .controlSize(.large)
+                    } else {
+                        VStack(spacing: 8) {
+                            Text("Signature Saved")
+                                .font(.subheadline)
+                                .foregroundColor(DSColor.statusSuccess)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                            AsyncImage(url: previousStudentSignatureURL) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView()
+                                        .frame(height: 150)
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(maxHeight: 150)
+                                        .cornerRadius(4)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .stroke(DSColor.border, lineWidth: 1)
+                                        )
+                                        .background(.white)
+                                case .failure:
+                                    SignatureErrorView()
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 8)
+                            
+                            Button("Change Signature") {
+                                previousStudentSignatureURL = nil
+                                studentSignaturePNGData = nil
+                                studentSignatureImage = nil
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundColor(DSColor.accent)
+                            .font(.subheadline)
+                        }
+                        .padding()
+                        .background(DSColor.backgroundSecondary)
+                        .cornerRadius(8)
                     }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical)
+                }
+                .padding(.vertical, 8)
+                
+                Divider()
+                    .padding(.vertical, 8)
+                
+                // Parent Signature Section
+                VStack(spacing: 12) {
+                    Text("Parent/Guardian Signature")
+                        .font(.headline)
+                        .foregroundColor(DSColor.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    if previousParentSignatureURL == nil {
+                        SignaturePadView(
+                            title: "Parent/Guardian",
+                            isSigning: $isParentSigning,
+                            clearSignature: $clearParentSignature,
+                            signatureImage: $parentSignatureImage,
+                            signaturePDF: $parentSignaturePDF,
+                            signaturePNGData: $parentSignaturePNGData
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(DSColor.border, lineWidth: 1)
+                        )
+                        
+                        Button {
+                            Task {
+                                await saveParentSignature()
+                            }
+                        } label: {
+                            Text("Save Parent/Guardian Signature")
+                                .fontWeight(.medium)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(parentSignaturePNGData != nil ? DSColor.accent : DSColor.backgroundSecondary)
+                        .foregroundColor(parentSignaturePNGData != nil ? DSColor.textOnAccent : DSColor.textSecondary)
+                        .disabled(parentSignaturePNGData == nil)
+                        .cornerRadius(8)
+                        .controlSize(.large)
+                    } else {
+                        VStack(spacing: 8) {
+                            Text("Signature Saved")
+                                .font(.subheadline)
+                                .foregroundColor(DSColor.statusSuccess)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                            AsyncImage(url: previousParentSignatureURL) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView()
+                                        .frame(height: 150)
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(maxHeight: 150)
+                                        .cornerRadius(4)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .stroke(DSColor.border, lineWidth: 1)
+                                        )
+                                        .background(.white)
+                                case .failure:
+                                    SignatureErrorView()
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 8)
+                            
+                            Button("Change Signature") {
+                                previousParentSignatureURL = nil
+                                parentSignaturePNGData = nil
+                                parentSignatureImage = nil
+                            }
+                            .buttonStyle(.borderless)
+                            .foregroundColor(DSColor.accent)
+                            .font(.subheadline)
+                        }
+                        .padding()
+                        .background(DSColor.backgroundSecondary)
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.vertical, 8)
+                
+                // Status message
+                if let statusMessage = signatureStatusMessage {
+                    HStack {
+                        Image(systemName: isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                            .foregroundColor(isError ? DSColor.statusError : DSColor.statusSuccess)
+                        Text(statusMessage)
+                            .font(.callout)
+                            .foregroundColor(isError ? DSColor.statusError : DSColor.statusSuccess)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(
+                        (isError ? DSColor.statusError : DSColor.statusSuccess).opacity(0.1)
+                    )
+                    .cornerRadius(8)
+                }
+                
+                Spacer(minLength: 24)
+                
+                // Generate Report Button
+                Button {
+                    Task {
+                        logger.info("Generate Report button tapped.")
+                        await viewModel.generateAndPreparePdfReport()
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "doc.fill")
+                        Text("Generate & Share PDF Report")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(DSColor.primary)
+                .controlSize(.large)
+                .disabled(viewModel.isGeneratingReport || previousStudentSignatureURL == nil || previousParentSignatureURL == nil)
+                .opacity((previousStudentSignatureURL == nil || previousParentSignatureURL == nil) ? 0.6 : 1.0)
+                
+                if previousStudentSignatureURL == nil || previousParentSignatureURL == nil {
+                    Text("Both signatures are required to generate a report")
+                        .font(.caption)
+                        .foregroundColor(DSColor.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 4)
+                }
+                
+                if viewModel.isGeneratingReport {
+                    ProgressView("Preparing report...")
+                        .padding(.top, 8)
                 }
             }
-            
-            
-            if let statusMessage = signatureStatusMessage {
-                Text(statusMessage)
-                    .font(.caption) // Consider DSFont.caption
-                    .foregroundColor(isError ? DSColor.statusError : DSColor.statusSuccess)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 5)
-            }
-            
-            Button {
-                Task {
-                    logger.info("Generate Report button tapped.")
-                    await viewModel.generateAndPreparePdfReport()
-                }
-            } label: {
-                HStack {
-                    Spacer()
-                    if viewModel.isGeneratingReport { ProgressView().tint(.white) }
-                    else { Label("Generate & Share PDF Report", systemImage: "square.and.arrow.up.fill").fontWeight(.semibold) }
-                    Spacer()
-                }
-            }
-            .buttonStyle(.borderedProminent).tint(DSColor.primary).controlSize(.large)
-            .disabled(viewModel.isGeneratingReport).padding(.top)
-            
-            Spacer()
+            .padding()
         }
-        .padding()
-        .navigationTitle("Export Report")
+        .scrollDisabled(isAnySigning)
+        .navigationTitle("Signature & Export")
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await viewModel.fetchUserProfile()
             await studentSignatureURL()
             await parentSignatureURL()
         }
-        // This sheet modifier will present when 'showingShareSheet' becomes true
         .sheet(isPresented: $viewModel.showingShareSheet, onDismiss: {
             // Clean up the temporary file when the sheet is dismissed
             if let url = viewModel.pdfReportFileUrl {
@@ -186,27 +304,48 @@ struct ExportView: View {
             logger.info("Share sheet dismissed.")
         }) {
             // This content is shown inside the presented sheet.
-            // The ShareLink, when its item is valid, will trigger the system share UI.
-            if let pdfURL = viewModel.pdfReportFileUrl { // Use the file URL
+            if let pdfURL = viewModel.pdfReportFileUrl {
                 ShareLink(
-                    item: pdfURL, // <-- Pass the URL of the saved PDF file
+                    item: pdfURL,
                     preview: SharePreview(
-                        "Community Hours Report.pdf", // Suggested filename
+                        "Community Hours Report.pdf",
                         image: Image(systemName: "doc.richtext.fill")
                     )
                 ) {
                     Label("Share Report", systemImage: "square.and.arrow.up")
+                        .font(.headline)
+                        .padding()
                 }
             } else {
-                VStack {
-                    Text("Preparing report for sharing...")
+                VStack(spacing: 16) {
+                    Text("Preparing your report...")
+                        .font(.headline)
                     ProgressView()
                 }
+                .padding()
             }
         }
     }
     
+    // Helper view for signature loading errors
+    private struct SignatureErrorView: View {
+        var body: some View {
+            VStack(spacing: 4) {
+                Image(systemName: "photo.fill")
+                    .foregroundColor(DSColor.statusWarning)
+                    .font(.largeTitle)
+                Text("Could not load signature")
+                    .font(.caption)
+                    .foregroundColor(DSColor.textSecondary)
+            }
+            .frame(height: 150)
+            .frame(maxWidth: .infinity)
+            .background(DSColor.backgroundSecondary.opacity(0.5))
+        }
+    }
+    
     private func saveStudentSignature() async {
+        isStudentSigning = false
         isError = false
         do {
             if let studentSignaturePNG =  studentSignaturePNGData {
@@ -261,6 +400,7 @@ struct ExportView: View {
     }
     
     private func saveParentSignature() async {
+        isParentSigning = false
         isError = false
         do {
             if let parentSignaturePNG =  parentSignaturePNGData {

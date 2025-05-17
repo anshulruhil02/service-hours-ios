@@ -105,6 +105,7 @@ struct SubmissionDetailView: View {
                                         .scaledToFit()
                                         .frame(maxHeight: 150) // Limit display height
                                         .border(DSColor.border) // Add a border
+                                        .background(.white)
                                 case .failure(let error):
                                     VStack {
                                         Image(systemName: "photo.fill")
@@ -162,6 +163,7 @@ struct SubmissionDetailView: View {
                                         .scaledToFit()
                                         .frame(maxHeight: 150) // Limit display height
                                         .border(DSColor.border) // Add a border
+                                        .background(.white)
                                 case .failure(let error):
                                     // Display error if image loading fails
                                     VStack {
