@@ -249,11 +249,25 @@ struct ExportView: View {
                     Task {
                         logger.info("Generate Report button tapped.")
                         await viewModel.generateAndPreparePdfReport()
+                        
+                        // Directly present the share sheet once PDF is ready
+                        if let pdfURL = viewModel.pdfReportFileUrl {
+                            // Use UIActivityViewController directly
+                            await MainActor.run {
+                                presentShareSheet(with: pdfURL)
+                            }
+                        }
                     }
                 } label: {
                     HStack {
-                        Image(systemName: "doc.fill")
-                        Text("Generate & Share PDF Report")
+                        if viewModel.pdfReportFileUrl == nil && viewModel.isGeneratingReport {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .foregroundColor(.white)
+                        } else {
+                            Image(systemName: "doc.fill")
+                        }
+                        Text(viewModel.pdfReportFileUrl == nil && viewModel.isGeneratingReport ? "Generating PDF, this might take a few seconds..." : "Generate & Share PDF Report")
                             .fontWeight(.semibold)
                     }
                     .frame(maxWidth: .infinity)
@@ -288,42 +302,42 @@ struct ExportView: View {
             await studentSignatureURL()
             await parentSignatureURL()
         }
-        .sheet(isPresented: $viewModel.showingShareSheet, onDismiss: {
-            // Clean up the temporary file when the sheet is dismissed
-            if let url = viewModel.pdfReportFileUrl {
-                do {
-                    try FileManager.default.removeItem(at: url)
-                    logger.info("Removed temporary PDF file: \(url.path)")
-                } catch {
-                    logger.error("Error removing temporary PDF file: \(error.localizedDescription)")
-                }
-            }
-            viewModel.pdfReportFileUrl = nil // Clear URL
-            viewModel.reportError = nil
-            logger.info("Share sheet dismissed.")
-        }) {
-            // This content is shown inside the presented sheet.
-            if let pdfURL = viewModel.pdfReportFileUrl {
-                ShareLink(
-                    item: pdfURL,
-                    preview: SharePreview(
-                        "Community Hours Report.pdf",
-                        image: Image(systemName: "doc.richtext.fill")
-                    )
-                ) {
-                    Label("Share Report", systemImage: "square.and.arrow.up")
-                        .font(.headline)
-                        .padding()
-                }
-            } else {
-                VStack(spacing: 16) {
-                    Text("Preparing your report...")
-                        .font(.headline)
-                    ProgressView()
-                }
-                .padding()
-            }
-        }
+        //        .sheet(isPresented: $viewModel.showingShareSheet, onDismiss: {
+        //            // Clean up the temporary file when the sheet is dismissed
+        //            if let url = viewModel.pdfReportFileUrl {
+        //                do {
+        //                    try FileManager.default.removeItem(at: url)
+        //                    logger.info("Removed temporary PDF file: \(url.path)")
+        //                } catch {
+        //                    logger.error("Error removing temporary PDF file: \(error.localizedDescription)")
+        //                }
+        //            }
+        //            viewModel.pdfReportFileUrl = nil // Clear URL
+        //            viewModel.reportError = nil
+        //            logger.info("Share sheet dismissed.")
+        //        }) {
+        //            // This content is shown inside the presented sheet.
+        //            if let pdfURL = viewModel.pdfReportFileUrl {
+        //                ShareLink(
+        //                    item: pdfURL,
+        //                    preview: SharePreview(
+        //                        "Community Hours Report.pdf",
+        //                        image: Image(systemName: "doc.richtext.fill")
+        //                    )
+        //                ) {
+        //                    Label("Share Report", systemImage: "square.and.arrow.up")
+        //                        .font(.headline)
+        //                        .padding()
+        //                }
+        //            } else {
+        //                VStack(spacing: 16) {
+        //                    Text("Preparing your report...")
+        //                        .font(.headline)
+        //                    ProgressView()
+        //                }
+        //                .padding()
+        //            }
+        //        }
     }
     
     // Helper view for signature loading errors
@@ -480,6 +494,47 @@ struct ExportView: View {
         } catch {
             logger.log("Previous Parent signature does not exist")
             previousParentSignatureURL = nil
+        }
+    }
+    
+    // Add this function to present the share sheet directly:
+    private func presentShareSheet(with url: URL) {
+        let activityViewController = UIActivityViewController(
+            activityItems: [url],
+            applicationActivities: nil
+        )
+        
+        // Configure for iPad
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            
+            if let presentedViewController = window.rootViewController?.presentedViewController {
+                // If there's already a presented view controller, present from it
+                activityViewController.popoverPresentationController?.sourceView = window
+                activityViewController.popoverPresentationController?.sourceRect = CGRect(x: window.bounds.midX, y: window.bounds.midY, width: 0, height: 0)
+                activityViewController.popoverPresentationController?.permittedArrowDirections = []
+                
+                presentedViewController.present(activityViewController, animated: true)
+            } else {
+                // Present from root view controller
+                activityViewController.popoverPresentationController?.sourceView = window
+                activityViewController.popoverPresentationController?.sourceRect = CGRect(x: window.bounds.midX, y: window.bounds.midY, width: 0, height: 0)
+                activityViewController.popoverPresentationController?.permittedArrowDirections = []
+                
+                window.rootViewController?.present(activityViewController, animated: true)
+            }
+        }
+        
+        // Clean up the temporary file when sharing is complete
+        activityViewController.completionWithItemsHandler = { _, _, _, _ in
+            do {
+                try FileManager.default.removeItem(at: url)
+                logger.info("Removed temporary PDF file: \(url.path)")
+            } catch {
+                logger.error("Error removing temporary PDF file: \(error.localizedDescription)")
+            }
+            viewModel.pdfReportFileUrl = nil
+            viewModel.reportError = nil
         }
     }
 }
