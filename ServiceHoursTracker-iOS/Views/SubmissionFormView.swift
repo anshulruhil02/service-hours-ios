@@ -30,6 +30,7 @@ extension View {
 
 enum Field: Hashable {
     case orgName, hours, telephone, supervisorName, description
+    case supervisorSignature, preApprovedSignature
 }
 
 struct SubmissionFormView: View {
@@ -50,14 +51,12 @@ struct SubmissionFormView: View {
     @State var isSupervisorSigning: Bool = false
     @State var clearSupervisorSignature: Bool = false
     @State var supervisorSignatureImage: UIImage? = nil
-    @State var supervisorSignaturePDF: Data? = nil
     @State var supervisorSignaturePNGData: Data? = nil
     
     // states dealing with Pre Approved Signatures
     @State var isPreApprovedSigning: Bool = false
     @State var clearPreApprovedSignature: Bool = false
     @State var preApprovedSignatureImage: UIImage? = nil
-    @State var preAppriovedSignaturePDF: Data? = nil
     @State var preApprovedSignaturePNGData: Data? = nil
     var submissionToEdit: SubmissionResponse?
     var previousSubmissionExists: Bool {
@@ -93,6 +92,7 @@ struct SubmissionFormView: View {
                 .ignoresSafeArea()
             NavigationView {
                 ScrollView {
+                    
                     VStack(alignment: .center, spacing: 10) {
                         TextField("Organization name", text: $orgName)
                             .focused($focusedField, equals: .orgName)
@@ -140,6 +140,19 @@ struct SubmissionFormView: View {
                             }
                         }
                         
+                        if isAnySigning {
+                            SigningModeBar(
+                                isSupervisorSigning: $isSupervisorSigning,
+                                isPreApprovedSigning: $isPreApprovedSigning,
+                                onCancelSupervisor: {
+                                    cancelSupervisorSigning()
+                                },
+                                onCancelPreApproved: {
+                                    cancelPreApprovedSigning()
+                                }
+                            )
+                        }
+                        
                         HStack(spacing: 15) {
                             if previousSupervisorSignatureURL == nil {
                                 SignaturePadView(
@@ -147,7 +160,6 @@ struct SubmissionFormView: View {
                                     isSigning: $isSupervisorSigning,
                                     clearSignature: $clearSupervisorSignature,
                                     signatureImage: $supervisorSignatureImage,
-                                    signaturePDF: $supervisorSignaturePDF,
                                     signaturePNGData: $supervisorSignaturePNGData
                                 )
                                 
@@ -193,7 +205,6 @@ struct SubmissionFormView: View {
                                     isSigning: $isPreApprovedSigning,
                                     clearSignature: $clearPreApprovedSignature,
                                     signatureImage: $preApprovedSignatureImage,
-                                    signaturePDF: $preAppriovedSignaturePDF, // Corrected typo in binding
                                     signaturePNGData: $preApprovedSignaturePNGData
                                 )
                             } else {
@@ -344,6 +355,15 @@ struct SubmissionFormView: View {
         
         return true
     }
+    
+    private func cancelSupervisorSigning() {
+        isSupervisorSigning = false
+    }
+    
+    private func cancelPreApprovedSigning() {
+        isPreApprovedSigning = false
+    }
+    
     
     private func saveprogress(previousSubmissionId: String? = nil) async {
         isLoading = true
@@ -594,5 +614,61 @@ struct SubmissionFormView: View {
             isError = true
             dump(error)
         }
+    }
+}
+
+
+// Optional: Prominent signing mode indicator bar
+struct SigningModeBar: View {
+    @Binding var isSupervisorSigning: Bool
+    @Binding var isPreApprovedSigning: Bool
+    let onCancelSupervisor: () -> Void
+    let onCancelPreApproved: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Image(systemName: "hand.draw")
+                    .foregroundColor(DSColor.accent)
+                Text("Signature Mode Active")
+                    .font(.headline)
+                    .foregroundColor(DSColor.textPrimary)
+                Spacer()
+            }
+            
+            HStack(spacing: 12) {
+                if isSupervisorSigning {
+                    Button("Cancel Supervisor") {
+                        isSupervisorSigning = false
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(.red)
+                }
+                
+                if isPreApprovedSigning {
+                    Button("Cancel Pre-Approved") {
+                        isPreApprovedSigning = false
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(.red)
+                }
+                
+                Spacer()
+                
+                Text("You can continue editing the form while signing")
+                    .font(.caption)
+                    .foregroundColor(DSColor.textSecondary)
+            }
+        }
+        .padding()
+        .background(DSColor.accent.opacity(0.1))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(DSColor.accent.opacity(0.3), lineWidth: 1)
+        )
+        .padding(.bottom, 8)
     }
 }

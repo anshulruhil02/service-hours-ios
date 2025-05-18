@@ -12,7 +12,6 @@ struct SignaturePadView: View {
     @Binding var isSigning: Bool
     @Binding var clearSignature: Bool
     @Binding var signatureImage: UIImage?
-    @Binding var signaturePDF: Data?
     @Binding var signaturePNGData: Data?
     var previousSignature: Image?
     
@@ -42,7 +41,6 @@ struct SignaturePadView: View {
                     SignatureViewContainer(
                         clearSignature: $clearSignature,
                         signatureImage: $signatureImage,
-                        pdfSignature: $signaturePDF,
                         signaturePNGData: $signaturePNGData
                     )
                     .disabled(!isSigning)
@@ -71,7 +69,6 @@ struct SignaturePadView: View {
                             isSigning = false
                             clearSignature = true // This will trigger the clear in SignatureViewContainer
                             signatureImage = nil // Also clear the image binding here
-                            signaturePDF = nil
                             signaturePNGData = nil
                         }) {
                             Image(systemName: "xmark.circle.fill")

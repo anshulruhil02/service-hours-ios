@@ -10,7 +10,6 @@ import SwiftUI
 struct SignatureViewContainer: UIViewRepresentable {
     @Binding var clearSignature: Bool
     @Binding var signatureImage: UIImage?
-    @Binding var pdfSignature: Data?
     @Binding var signaturePNGData: Data?
     
     @State private var updateDataToggle: Bool = false
@@ -28,7 +27,6 @@ struct SignatureViewContainer: UIViewRepresentable {
             DispatchQueue.main.async {
                 clearSignature.toggle()
                 signatureImage = nil
-                pdfSignature = nil
             }
         }
     }

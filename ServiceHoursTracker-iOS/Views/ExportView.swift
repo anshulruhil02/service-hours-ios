@@ -18,13 +18,11 @@ struct ExportView: View {
     @State var isStudentSigning: Bool = false
     @State var clearStudentSignature: Bool = false
     @State var studentSignatureImage: UIImage? = nil
-    @State var studentSignaturePDF: Data? = nil
     @State var studentSignaturePNGData: Data? = nil
     
     @State var isParentSigning: Bool = false
     @State var clearParentSignature: Bool = false
     @State var parentSignatureImage: UIImage? = nil
-    @State var parentSignaturePDF: Data? = nil
     @State var parentSignaturePNGData: Data? = nil
     
     @State private var signatureStatusMessage: String?
@@ -67,7 +65,6 @@ struct ExportView: View {
                             isSigning: $isStudentSigning,
                             clearSignature: $clearStudentSignature,
                             signatureImage: $studentSignatureImage,
-                            signaturePDF: $studentSignaturePDF,
                             signaturePNGData: $studentSignaturePNGData
                         )
                         .overlay(
@@ -154,7 +151,6 @@ struct ExportView: View {
                             isSigning: $isParentSigning,
                             clearSignature: $clearParentSignature,
                             signatureImage: $parentSignatureImage,
-                            signaturePDF: $parentSignaturePDF,
                             signaturePNGData: $parentSignaturePNGData
                         )
                         .overlay(
@@ -247,6 +243,10 @@ struct ExportView: View {
                 // Generate Report Button
                 Button {
                     Task {
+                        studentSignatureImage = nil
+                        studentSignaturePNGData = nil
+                        parentSignatureImage = nil
+                        parentSignaturePNGData = nil
                         logger.info("Generate Report button tapped.")
                         await viewModel.generateAndPreparePdfReport()
                         
@@ -302,42 +302,6 @@ struct ExportView: View {
             await studentSignatureURL()
             await parentSignatureURL()
         }
-        //        .sheet(isPresented: $viewModel.showingShareSheet, onDismiss: {
-        //            // Clean up the temporary file when the sheet is dismissed
-        //            if let url = viewModel.pdfReportFileUrl {
-        //                do {
-        //                    try FileManager.default.removeItem(at: url)
-        //                    logger.info("Removed temporary PDF file: \(url.path)")
-        //                } catch {
-        //                    logger.error("Error removing temporary PDF file: \(error.localizedDescription)")
-        //                }
-        //            }
-        //            viewModel.pdfReportFileUrl = nil // Clear URL
-        //            viewModel.reportError = nil
-        //            logger.info("Share sheet dismissed.")
-        //        }) {
-        //            // This content is shown inside the presented sheet.
-        //            if let pdfURL = viewModel.pdfReportFileUrl {
-        //                ShareLink(
-        //                    item: pdfURL,
-        //                    preview: SharePreview(
-        //                        "Community Hours Report.pdf",
-        //                        image: Image(systemName: "doc.richtext.fill")
-        //                    )
-        //                ) {
-        //                    Label("Share Report", systemImage: "square.and.arrow.up")
-        //                        .font(.headline)
-        //                        .padding()
-        //                }
-        //            } else {
-        //                VStack(spacing: 16) {
-        //                    Text("Preparing your report...")
-        //                        .font(.headline)
-        //                    ProgressView()
-        //                }
-        //                .padding()
-        //            }
-        //        }
     }
     
     // Helper view for signature loading errors
