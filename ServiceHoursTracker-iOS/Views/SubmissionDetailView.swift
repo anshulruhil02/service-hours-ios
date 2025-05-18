@@ -53,6 +53,8 @@ struct SubmissionDetailView: View {
                     DetailRow(label: "Organization", value: submission.orgName ?? "No Org name")
                     DetailRow(label: "Hours Submitted", value: String(format: "%.1f", submission.hours ?? 0)) // Format hours
                     DetailRow(label: "Date Completed", value: submission.submissionDate, formatter: Self.submissionDateFormatter)
+                    DetailRow(label: "Telephone", value: String(format: "%.1f", submission.telephone ?? 0))
+                    DetailRow(label: "Supervisor name", value: submission.supervisorName ?? "No supervisor name")
                 }
                 
                 // Section for the description, only shown if it exists

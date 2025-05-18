@@ -82,6 +82,8 @@ struct SubmissionFormView: View {
             _hoursString = State(initialValue: submission.hours.map { String($0) } ?? "")
             _submissionDate = State(initialValue: submission.submissionDate)
             _description = State(initialValue: submission.description ?? "")
+            _telephone = State(initialValue: submission.telephone.map { String($0) } ?? "")
+            _supervisorName = State(initialValue: submission.supervisorName ?? "")
         }
     }
     
@@ -593,13 +595,4 @@ struct SubmissionFormView: View {
             dump(error)
         }
     }
-    
-    //    private func clearForm() {
-    //        orgName = ""
-    //        hoursString = ""
-    //        submissionDate = Date() // Reset to today
-    //        description = ""
-    //        signatureImage = nil
-    //        signaturePNGData = nil
-    //    }
 }

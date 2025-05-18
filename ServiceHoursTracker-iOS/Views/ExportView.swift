@@ -34,7 +34,6 @@ struct ExportView: View {
     
     private let apiService = APIService()
     
-    // Computed property to check if any signature field is active
     var isAnySigning: Bool {
         return isStudentSigning || isParentSigning
     }
