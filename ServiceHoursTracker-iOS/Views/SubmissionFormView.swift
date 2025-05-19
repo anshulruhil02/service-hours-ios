@@ -68,6 +68,11 @@ struct SubmissionFormView: View {
     @State var previousSupervisorSignatureURL: URL?
     @State var previousPreAprrovedSignatureURL: URL?
     
+    // New states for delete functionality
+    @State private var showingDeleteAlert = false
+    @State private var isDeleting = false
+    @State private var deleteError: String? = nil
+    
     @Environment(\.dismiss) var dismiss
     
     // API Service instance (consider injecting later)
@@ -318,6 +323,26 @@ struct SubmissionFormView: View {
                 }
                 .scrollDisabled(isAnySigning)
                 .navigationTitle(previousSubmissionExists ? "Edit Service Hours" : "Log Service Hours")
+                .toolbar {
+                    if previousSubmissionExists {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button(action: {
+                                showingDeleteAlert = true
+                            }) {
+                                HStack {
+                                    if isDeleting {
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                    } else {
+                                        Image(systemName: "trash")
+                                    }
+                                }
+                                .foregroundColor(DSColor.statusError)
+                            }
+                            .disabled(isDeleting)
+                        }
+                    }
+                }
                 .navigationBarTitleDisplayMode(.inline)
             }
         }
@@ -327,6 +352,16 @@ struct SubmissionFormView: View {
                 await preApprovedSignatureURL()
                 print("Existing submission: \(String(describing: submissionToEdit))")
             }
+        }
+        .alert("Delete Submission", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Task {
+                    await deleteSubmission()
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this submission? This action cannot be undone.")
         }
     }
     
@@ -615,6 +650,43 @@ struct SubmissionFormView: View {
             dump(error)
         }
     }
+    
+    private func deleteSubmission() async {
+        isDeleting = true
+        deleteError = nil
+        
+        do {
+            if let submission = submissionToEdit {
+                try await apiService.deleteSubmission(submissionId: submission.id)
+                logger.info("Successfully deleted submission \(submission.id)")
+            }
+            // Dismiss the view after successful deletion
+            await MainActor.run {
+                dismiss()
+            }
+        } catch let error as APIError {
+            logger.error("Failed to delete submission: \(error)")
+            await MainActor.run {
+                switch error {
+                case .unauthorized:
+                    deleteError = "Authentication error. Please sign in again."
+                case .serverError(_, let msg):
+                    deleteError = msg ?? "Server error occurred."
+                case .requestFailed:
+                    deleteError = "Network error. Please check your connection."
+                default:
+                    deleteError = "Could not delete submission."
+                }
+            }
+        } catch {
+            logger.error("Unexpected error deleting submission: \(error)")
+            await MainActor.run {
+                deleteError = "An unexpected error occurred."
+            }
+        }
+        
+        isDeleting = false
+    }
 }
 
 
@@ -638,7 +710,7 @@ struct SigningModeBar: View {
             
             HStack(spacing: 12) {
                 if isSupervisorSigning {
-                    Button("Cancel Supervisor") {
+                    Button("Save supervisor sig") {
                         isSupervisorSigning = false
                     }
                     .buttonStyle(.bordered)
@@ -647,7 +719,7 @@ struct SigningModeBar: View {
                 }
                 
                 if isPreApprovedSigning {
-                    Button("Cancel Pre-Approved") {
+                    Button("Save Pre-Approved sig") {
                         isPreApprovedSigning = false
                     }
                     .buttonStyle(.bordered)

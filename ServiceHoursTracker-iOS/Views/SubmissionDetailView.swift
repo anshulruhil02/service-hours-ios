@@ -24,6 +24,12 @@ struct SubmissionDetailView: View {
     @State private var preApprovedIsLoadingSignature: Bool = false
     @State private var preApprovedSignatureError: String? = nil
     
+    // New states for delete functionality
+    @State private var showingDeleteAlert = false
+    @State private var isDeleting = false
+    @State private var deleteError: String? = nil
+    @Environment(\.dismiss) var dismiss
+    
     
     // Logger instance (optional)
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "SubmissionDetailView")
@@ -204,6 +210,24 @@ struct SubmissionDetailView: View {
         }
         .navigationTitle("Submission Details") // Title for this screen
         .navigationBarTitleDisplayMode(.inline) // Keep title small
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: {
+                    showingDeleteAlert = true
+                }) {
+                    HStack {
+                        if isDeleting {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "trash")
+                        }
+                    }
+                    .foregroundColor(DSColor.statusError)
+                }
+                .disabled(isDeleting)
+            }
+        }
         .task {
             if supervisorSignatureViewUrl == nil && !supervisorIsLoadingSignature && supervisorSignatureError == nil {
                 await loadSupervisorSignatureUrl()
@@ -213,7 +237,16 @@ struct SubmissionDetailView: View {
                 await loadPreApprovedSignatureUrl()
             }
         }
-        
+        .alert("Delete Submission", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
+                Task {
+                    await deleteSubmission()
+                }
+            }
+        } message: {
+            Text("Are you sure you want to delete this submission? This action cannot be undone.")
+        }
         
     }
     
@@ -269,6 +302,42 @@ struct SubmissionDetailView: View {
         }
         
         preApprovedIsLoadingSignature = false
+    }
+    
+    private func deleteSubmission() async {
+        isDeleting = true
+        deleteError = nil
+        
+        do {
+            try await apiService.deleteSubmission(submissionId: submission.id)
+            logger.info("Successfully deleted submission \(submission.id)")
+            
+            // Dismiss the view after successful deletion
+            await MainActor.run {
+                dismiss()
+            }
+        } catch let error as APIError {
+            logger.error("Failed to delete submission: \(error)")
+            await MainActor.run {
+                switch error {
+                case .unauthorized:
+                    deleteError = "Authentication error. Please sign in again."
+                case .serverError(_, let msg):
+                    deleteError = msg ?? "Server error occurred."
+                case .requestFailed:
+                    deleteError = "Network error. Please check your connection."
+                default:
+                    deleteError = "Could not delete submission."
+                }
+            }
+        } catch {
+            logger.error("Unexpected error deleting submission: \(error)")
+            await MainActor.run {
+                deleteError = "An unexpected error occurred."
+            }
+        }
+        
+        isDeleting = false
     }
 }
 

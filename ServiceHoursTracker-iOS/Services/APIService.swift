@@ -10,7 +10,7 @@ import Clerk
 import os.log
 
 class APIService {
-    private let baseURL = "http://98.81.7.17:3000"
+    private let baseURL = "http://localhost:3000"
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "APIService") // Optional logger
     
     // Function to fetch the user profile from /users/me FOR LIVE APP USE
@@ -419,137 +419,137 @@ class APIService {
     
     // This function sends the put request using the uploadUrl and signature key extracted from teh response of teh get request by getSignatureUploadUrl()
     func uploadSupervisorSignatureToS3(uploadUrl: URL, imageData: Data) async throws {
-           var request = URLRequest(url: uploadUrl)
-           request.httpMethod = "PUT"
-           // Set the Content-Type header EXACTLY as specified when generating the URL (likely image/png)
-           request.setValue("image/png", forHTTPHeaderField: "Content-Type")
-           // Content-Length is often set automatically by URLSession from httpBody size
-           // request.setValue("\(imageData.count)", forHTTPHeaderField: "Content-Length")
-
-           logger.info("Uploading signature data (\(imageData.count) bytes) directly to S3...")
-
-           do {
-               // Perform the upload using URLSession's upload(for:from:) method
-               let (_, response) = try await URLSession.shared.upload(for: request, from: imageData)
-
-               guard let httpResponse = response as? HTTPURLResponse else {
-                   logger.error("S3 Upload Error: Invalid response received.")
-                   throw APIError.invalidResponse
-               }
-               
-               logger.info("Received S3 upload status code: \(httpResponse.statusCode)")
-
-               // S3 typically returns 200 OK for a successful PUT
-               guard (200...299).contains(httpResponse.statusCode) else {
-                   // Attempt to read error body from S3 if possible
-                   // let errorBody = String(data: data, encoding: .utf8) ?? "No error body"
-                   // logger.error("S3 Upload Error: Status \(httpResponse.statusCode). Body: \(errorBody)")
-                   throw APIError.s3UploadFailed(statusCode: httpResponse.statusCode)
-               }
-               
-               logger.info("Signature successfully uploaded to S3.")
-
-           } catch let error as APIError {
-               throw error // Re-throw known API errors
-           } catch {
-               logger.error("S3 Upload Error: URLSession upload task failed - \(error)")
-               throw APIError.requestFailed(error)
-           }
-       }
+        var request = URLRequest(url: uploadUrl)
+        request.httpMethod = "PUT"
+        // Set the Content-Type header EXACTLY as specified when generating the URL (likely image/png)
+        request.setValue("image/png", forHTTPHeaderField: "Content-Type")
+        // Content-Length is often set automatically by URLSession from httpBody size
+        // request.setValue("\(imageData.count)", forHTTPHeaderField: "Content-Length")
+        
+        logger.info("Uploading signature data (\(imageData.count) bytes) directly to S3...")
+        
+        do {
+            // Perform the upload using URLSession's upload(for:from:) method
+            let (_, response) = try await URLSession.shared.upload(for: request, from: imageData)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                logger.error("S3 Upload Error: Invalid response received.")
+                throw APIError.invalidResponse
+            }
+            
+            logger.info("Received S3 upload status code: \(httpResponse.statusCode)")
+            
+            // S3 typically returns 200 OK for a successful PUT
+            guard (200...299).contains(httpResponse.statusCode) else {
+                // Attempt to read error body from S3 if possible
+                // let errorBody = String(data: data, encoding: .utf8) ?? "No error body"
+                // logger.error("S3 Upload Error: Status \(httpResponse.statusCode). Body: \(errorBody)")
+                throw APIError.s3UploadFailed(statusCode: httpResponse.statusCode)
+            }
+            
+            logger.info("Signature successfully uploaded to S3.")
+            
+        } catch let error as APIError {
+            throw error // Re-throw known API errors
+        } catch {
+            logger.error("S3 Upload Error: URLSession upload task failed - \(error)")
+            throw APIError.requestFailed(error)
+        }
+    }
     
     func saveSupervisorSignatureReference(submissionId: String, signatureKey: String) async throws -> SubmissionResponse {
-            guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
-            guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
-            guard let url = URL(string: "\(baseURL)/submissions/\(submissionId)/supervisor-signature") else { throw APIError.invalidURL }
-
-            var request = URLRequest(url: url)
-            request.httpMethod = "PATCH"
-            request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-            let bodyDto = SaveSignatureDto(signatureKey: signatureKey)
-            let encoder = JSONEncoder()
-            do {
-                request.httpBody = try encoder.encode(bodyDto)
-            } catch {
-                throw APIError.encodingError(error)
-            }
-
-            logger.info("Saving signature reference (key: \(signatureKey)) for submission \(submissionId)")
-
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
-                logger.info("Received status code for save reference request: \(httpResponse.statusCode)")
-
-                guard (200...299).contains(httpResponse.statusCode) else {
-                    let responseBody = String(data: data, encoding: .utf8)
-                    if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 { throw APIError.unauthorized }
-                    else { throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody) }
-                }
-
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .formatted(APIService.iso8601Full) // Use custom formatter
-                do {
-                    let updatedSubmission = try decoder.decode(SubmissionResponse.self, from: data)
-                    logger.info("Successfully saved signature reference for submission \(submissionId)")
-                    return updatedSubmission
-                } catch {
-                    logger.error("API Error: Failed to decode save reference response JSON - \(error)")
-                    throw APIError.decodingError(error)
-                }
-            } catch let error as APIError { throw error }
-              catch { throw APIError.requestFailed(error) }
+        guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
+        guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
+        guard let url = URL(string: "\(baseURL)/submissions/\(submissionId)/supervisor-signature") else { throw APIError.invalidURL }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        let bodyDto = SaveSignatureDto(signatureKey: signatureKey)
+        let encoder = JSONEncoder()
+        do {
+            request.httpBody = try encoder.encode(bodyDto)
+        } catch {
+            throw APIError.encodingError(error)
         }
+        
+        logger.info("Saving signature reference (key: \(signatureKey)) for submission \(submissionId)")
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+            logger.info("Received status code for save reference request: \(httpResponse.statusCode)")
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let responseBody = String(data: data, encoding: .utf8)
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 { throw APIError.unauthorized }
+                else { throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody) }
+            }
+            
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .formatted(APIService.iso8601Full) // Use custom formatter
+            do {
+                let updatedSubmission = try decoder.decode(SubmissionResponse.self, from: data)
+                logger.info("Successfully saved signature reference for submission \(submissionId)")
+                return updatedSubmission
+            } catch {
+                logger.error("API Error: Failed to decode save reference response JSON - \(error)")
+                throw APIError.decodingError(error)
+            }
+        } catch let error as APIError { throw error }
+        catch { throw APIError.requestFailed(error) }
+    }
     
     
     func getSupervisorSignatureViewUrl(submissionId: String) async throws -> URL? {
-            guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
-            guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
-            // Target the new GET /submissions/:id/signature endpoint
-            guard let url = URL(string: "\(baseURL)/submissions/\(submissionId)/supervisor-signature") else { throw APIError.invalidURL }
-
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
+        guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
+        guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
+        // Target the new GET /submissions/:id/signature endpoint
+        guard let url = URL(string: "\(baseURL)/submissions/\(submissionId)/supervisor-signature") else { throw APIError.invalidURL }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
         request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-            logger.info("Requesting signature view URL for submission \(submissionId)")
-
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        logger.info("Requesting signature view URL for submission \(submissionId)")
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+            logger.info("Received status code for view URL request: \(httpResponse.statusCode)")
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let responseBody = String(data: data, encoding: .utf8)
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 { throw APIError.unauthorized }
+                // Handle 404 specifically if backend sends it when signatureUrl is null
+                else if httpResponse.statusCode == 404 {
+                    logger.info("Signature not found on backend for submission \(submissionId).")
+                    return nil // Return nil explicitly if backend indicates not found
+                }
+                else { throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody) }
+            }
+            
+            let decoder = JSONDecoder()
             do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
-                logger.info("Received status code for view URL request: \(httpResponse.statusCode)")
-
-                guard (200...299).contains(httpResponse.statusCode) else {
-                    let responseBody = String(data: data, encoding: .utf8)
-                    if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 { throw APIError.unauthorized }
-                    // Handle 404 specifically if backend sends it when signatureUrl is null
-                    else if httpResponse.statusCode == 404 {
-                         logger.info("Signature not found on backend for submission \(submissionId).")
-                         return nil // Return nil explicitly if backend indicates not found
-                    }
-                    else { throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody) }
+                let decodedResponse = try decoder.decode(ViewUrlResponse.self, from: data)
+                if let urlString = decodedResponse.viewUrl, let viewUrl = URL(string: urlString) {
+                    logger.info("Successfully received signature view URL.")
+                    return viewUrl // Return the URL object
+                } else {
+                    logger.info("Received null or invalid view URL string from backend.")
+                    return nil // Return nil if the URL string is null or invalid
                 }
-                
-                let decoder = JSONDecoder()
-                do {
-                    let decodedResponse = try decoder.decode(ViewUrlResponse.self, from: data)
-                    if let urlString = decodedResponse.viewUrl, let viewUrl = URL(string: urlString) {
-                         logger.info("Successfully received signature view URL.")
-                        return viewUrl // Return the URL object
-                    } else {
-                         logger.info("Received null or invalid view URL string from backend.")
-                        return nil // Return nil if the URL string is null or invalid
-                    }
-                } catch {
-                    logger.error("API Error: Failed to decode view URL response JSON - \(error)")
-                    throw APIError.decodingError(error)
-                }
-            } catch let error as APIError { throw error }
-              catch { throw APIError.requestFailed(error) }
-        } // End getSignatureViewUrl
+            } catch {
+                logger.error("API Error: Failed to decode view URL response JSON - \(error)")
+                throw APIError.decodingError(error)
+            }
+        } catch let error as APIError { throw error }
+        catch { throw APIError.requestFailed(error) }
+    } // End getSignatureViewUrl
     
     // This fucntion fetches the URL that allows us to store the signature inside AWS s3 bucket
     func getPreApprovedSignatureUploadUrl(submissionId: String) async throws -> (uploadUrl: URL, key: String) {
@@ -594,137 +594,137 @@ class APIService {
     
     // This function sends the put request using the uploadUrl and signature key extracted from teh response of teh get request by getSignatureUploadUrl()
     func uploadPreApprovedSignatureToS3(uploadUrl: URL, imageData: Data) async throws {
-           var request = URLRequest(url: uploadUrl)
-           request.httpMethod = "PUT"
-           // Set the Content-Type header EXACTLY as specified when generating the URL (likely image/png)
-           request.setValue("image/png", forHTTPHeaderField: "Content-Type")
-           // Content-Length is often set automatically by URLSession from httpBody size
-           // request.setValue("\(imageData.count)", forHTTPHeaderField: "Content-Length")
-
-           logger.info("Uploading signature data (\(imageData.count) bytes) directly to S3...")
-
-           do {
-               // Perform the upload using URLSession's upload(for:from:) method
-               let (_, response) = try await URLSession.shared.upload(for: request, from: imageData)
-
-               guard let httpResponse = response as? HTTPURLResponse else {
-                   logger.error("S3 Upload Error: Invalid response received.")
-                   throw APIError.invalidResponse
-               }
-               
-               logger.info("Received S3 upload status code: \(httpResponse.statusCode)")
-
-               // S3 typically returns 200 OK for a successful PUT
-               guard (200...299).contains(httpResponse.statusCode) else {
-                   // Attempt to read error body from S3 if possible
-                   // let errorBody = String(data: data, encoding: .utf8) ?? "No error body"
-                   // logger.error("S3 Upload Error: Status \(httpResponse.statusCode). Body: \(errorBody)")
-                   throw APIError.s3UploadFailed(statusCode: httpResponse.statusCode)
-               }
-               
-               logger.info("Signature successfully uploaded to S3.")
-
-           } catch let error as APIError {
-               throw error // Re-throw known API errors
-           } catch {
-               logger.error("S3 Upload Error: URLSession upload task failed - \(error)")
-               throw APIError.requestFailed(error)
-           }
-       }
+        var request = URLRequest(url: uploadUrl)
+        request.httpMethod = "PUT"
+        // Set the Content-Type header EXACTLY as specified when generating the URL (likely image/png)
+        request.setValue("image/png", forHTTPHeaderField: "Content-Type")
+        // Content-Length is often set automatically by URLSession from httpBody size
+        // request.setValue("\(imageData.count)", forHTTPHeaderField: "Content-Length")
+        
+        logger.info("Uploading signature data (\(imageData.count) bytes) directly to S3...")
+        
+        do {
+            // Perform the upload using URLSession's upload(for:from:) method
+            let (_, response) = try await URLSession.shared.upload(for: request, from: imageData)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                logger.error("S3 Upload Error: Invalid response received.")
+                throw APIError.invalidResponse
+            }
+            
+            logger.info("Received S3 upload status code: \(httpResponse.statusCode)")
+            
+            // S3 typically returns 200 OK for a successful PUT
+            guard (200...299).contains(httpResponse.statusCode) else {
+                // Attempt to read error body from S3 if possible
+                // let errorBody = String(data: data, encoding: .utf8) ?? "No error body"
+                // logger.error("S3 Upload Error: Status \(httpResponse.statusCode). Body: \(errorBody)")
+                throw APIError.s3UploadFailed(statusCode: httpResponse.statusCode)
+            }
+            
+            logger.info("Signature successfully uploaded to S3.")
+            
+        } catch let error as APIError {
+            throw error // Re-throw known API errors
+        } catch {
+            logger.error("S3 Upload Error: URLSession upload task failed - \(error)")
+            throw APIError.requestFailed(error)
+        }
+    }
     
     func savePreApprovedSignatureReference(submissionId: String, signatureKey: String) async throws -> SubmissionResponse {
-            guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
-            guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
-            guard let url = URL(string: "\(baseURL)/submissions/\(submissionId)/pre-approved-signature") else { throw APIError.invalidURL }
-
-            var request = URLRequest(url: url)
-            request.httpMethod = "PATCH"
+        guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
+        guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
+        guard let url = URL(string: "\(baseURL)/submissions/\(submissionId)/pre-approved-signature") else { throw APIError.invalidURL }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
         request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-            let bodyDto = SaveSignatureDto(signatureKey: signatureKey)
-            let encoder = JSONEncoder()
-            do {
-                request.httpBody = try encoder.encode(bodyDto)
-            } catch {
-                throw APIError.encodingError(error)
-            }
-
-            logger.info("Saving signature reference (key: \(signatureKey)) for submission \(submissionId)")
-
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
-                logger.info("Received status code for save reference request: \(httpResponse.statusCode)")
-
-                guard (200...299).contains(httpResponse.statusCode) else {
-                    let responseBody = String(data: data, encoding: .utf8)
-                    if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 { throw APIError.unauthorized }
-                    else { throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody) }
-                }
-
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .formatted(APIService.iso8601Full) // Use custom formatter
-                do {
-                    let updatedSubmission = try decoder.decode(SubmissionResponse.self, from: data)
-                    logger.info("Successfully saved signature reference for submission \(submissionId)")
-                    return updatedSubmission
-                } catch {
-                    logger.error("API Error: Failed to decode save reference response JSON - \(error)")
-                    throw APIError.decodingError(error)
-                }
-            } catch let error as APIError { throw error }
-              catch { throw APIError.requestFailed(error) }
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        let bodyDto = SaveSignatureDto(signatureKey: signatureKey)
+        let encoder = JSONEncoder()
+        do {
+            request.httpBody = try encoder.encode(bodyDto)
+        } catch {
+            throw APIError.encodingError(error)
         }
+        
+        logger.info("Saving signature reference (key: \(signatureKey)) for submission \(submissionId)")
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+            logger.info("Received status code for save reference request: \(httpResponse.statusCode)")
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let responseBody = String(data: data, encoding: .utf8)
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 { throw APIError.unauthorized }
+                else { throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody) }
+            }
+            
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .formatted(APIService.iso8601Full) // Use custom formatter
+            do {
+                let updatedSubmission = try decoder.decode(SubmissionResponse.self, from: data)
+                logger.info("Successfully saved signature reference for submission \(submissionId)")
+                return updatedSubmission
+            } catch {
+                logger.error("API Error: Failed to decode save reference response JSON - \(error)")
+                throw APIError.decodingError(error)
+            }
+        } catch let error as APIError { throw error }
+        catch { throw APIError.requestFailed(error) }
+    }
     
     
     func getPreApprovedSignatureViewUrl(submissionId: String) async throws -> URL? {
-            guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
-            guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
-            // Target the new GET /submissions/:id/signature endpoint
-            guard let url = URL(string: "\(baseURL)/submissions/\(submissionId)/pre-approved-signature") else { throw APIError.invalidURL }
-
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
+        guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
+        guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
+        // Target the new GET /submissions/:id/signature endpoint
+        guard let url = URL(string: "\(baseURL)/submissions/\(submissionId)/pre-approved-signature") else { throw APIError.invalidURL }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
         request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-            logger.info("Requesting signature view URL for submission \(submissionId)")
-
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        logger.info("Requesting signature view URL for submission \(submissionId)")
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+            logger.info("Received status code for view URL request: \(httpResponse.statusCode)")
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let responseBody = String(data: data, encoding: .utf8)
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 { throw APIError.unauthorized }
+                // Handle 404 specifically if backend sends it when signatureUrl is null
+                else if httpResponse.statusCode == 404 {
+                    logger.info("Signature not found on backend for submission \(submissionId).")
+                    return nil // Return nil explicitly if backend indicates not found
+                }
+                else { throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody) }
+            }
+            
+            let decoder = JSONDecoder()
             do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
-                logger.info("Received status code for view URL request: \(httpResponse.statusCode)")
-
-                guard (200...299).contains(httpResponse.statusCode) else {
-                    let responseBody = String(data: data, encoding: .utf8)
-                    if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 { throw APIError.unauthorized }
-                    // Handle 404 specifically if backend sends it when signatureUrl is null
-                    else if httpResponse.statusCode == 404 {
-                         logger.info("Signature not found on backend for submission \(submissionId).")
-                         return nil // Return nil explicitly if backend indicates not found
-                    }
-                    else { throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody) }
+                let decodedResponse = try decoder.decode(ViewUrlResponse.self, from: data)
+                if let urlString = decodedResponse.viewUrl, let viewUrl = URL(string: urlString) {
+                    logger.info("Successfully received signature view URL.")
+                    return viewUrl // Return the URL object
+                } else {
+                    logger.info("Received null or invalid view URL string from backend.")
+                    return nil // Return nil if the URL string is null or invalid
                 }
-                
-                let decoder = JSONDecoder()
-                do {
-                    let decodedResponse = try decoder.decode(ViewUrlResponse.self, from: data)
-                    if let urlString = decodedResponse.viewUrl, let viewUrl = URL(string: urlString) {
-                         logger.info("Successfully received signature view URL.")
-                        return viewUrl // Return the URL object
-                    } else {
-                         logger.info("Received null or invalid view URL string from backend.")
-                        return nil // Return nil if the URL string is null or invalid
-                    }
-                } catch {
-                    logger.error("API Error: Failed to decode view URL response JSON - \(error)")
-                    throw APIError.decodingError(error)
-                }
-            } catch let error as APIError { throw error }
-              catch { throw APIError.requestFailed(error) }
-        } // End getSignatureViewUrl
+            } catch {
+                logger.error("API Error: Failed to decode view URL response JSON - \(error)")
+                throw APIError.decodingError(error)
+            }
+        } catch let error as APIError { throw error }
+        catch { throw APIError.requestFailed(error) }
+    } // End getSignatureViewUrl
     
     // This function fetches the URL that allows us to store the student signature inside AWS S3 bucket
     func getStudentSignatureUploadUrl(userId: String) async throws -> (uploadUrl: URL, key: String) {
@@ -766,7 +766,7 @@ class APIService {
         } catch let error as APIError { throw error }
         catch { throw APIError.requestFailed(error) }
     }
-
+    
     // This function sends the put request using the uploadUrl and signature key extracted from the response of the get request
     func uploadStudentSignatureToS3(uploadUrl: URL, imageData: Data) async throws {
         var request = URLRequest(url: uploadUrl)
@@ -801,7 +801,7 @@ class APIService {
             throw APIError.requestFailed(error)
         }
     }
-
+    
     func saveStudentSignatureReference(userId: String, signatureKey: String) async throws -> UserResponse {
         guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
         guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
@@ -849,7 +849,7 @@ class APIService {
         } catch let error as APIError { throw error }
         catch { throw APIError.requestFailed(error) }
     }
-
+    
     func getStudentSignatureViewUrl(userId: String) async throws -> URL? {
         guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
         guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
@@ -937,7 +937,7 @@ class APIService {
         } catch let error as APIError { throw error }
         catch { throw APIError.requestFailed(error) }
     }
-
+    
     // This function sends the put request using the uploadUrl and signature key extracted from the response of the get request
     func uploadParentSignatureToS3(uploadUrl: URL, imageData: Data) async throws {
         var request = URLRequest(url: uploadUrl)
@@ -972,7 +972,7 @@ class APIService {
             throw APIError.requestFailed(error)
         }
     }
-
+    
     func saveParentSignatureReference(userId: String, signatureKey: String) async throws -> UserResponse {
         guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
         guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
@@ -1020,7 +1020,7 @@ class APIService {
         } catch let error as APIError { throw error }
         catch { throw APIError.requestFailed(error) }
     }
-
+    
     func getParentSignatureViewUrl(userId: String) async throws -> URL? {
         guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
         guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
@@ -1068,67 +1068,99 @@ class APIService {
         catch { throw APIError.requestFailed(error) }
     }
     
-    func downloadPdfReport() async throws -> Data {
-            guard let session = await Clerk.shared.session else {
-                logger.error("API Error: No active Clerk session found for PDF report.")
-                throw APIError.noActiveSession
-            }
-            
-            guard let token = try? await session.getToken() else {
-                logger.error("API Error: Could not retrieve default Clerk token object for PDF report.")
-                throw APIError.tokenUnavailable
-            }
-            
-            // Endpoint for student's own report
-            guard let url = URL(string: "\(baseURL)/users/me/submissions/report/pdf") else {
-                logger.error("API Error: Invalid URL for PDF report.")
-                throw APIError.invalidURL
-            }
-
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
+    func deleteSubmission(submissionId: String) async throws {
+        guard let session = await Clerk.shared.session else { throw APIError.noActiveSession }
+        guard let token = try? await session.getToken() else { throw APIError.tokenUnavailable }
+        guard let url = URL(string: "\(baseURL)/submissions/\(submissionId)") else { throw APIError.invalidURL }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
         request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
-            // No need for 'Accept: application/json' here as we expect PDF data
-
-            logger.info("Requesting PDF report from \(url)")
-
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    logger.error("API Error: Invalid response received for PDF report.")
-                    throw APIError.invalidResponse
-                }
-                logger.info("Received status code for PDF report request: \(httpResponse.statusCode)")
-
-                guard (200...299).contains(httpResponse.statusCode) else {
-                    let responseBody = String(data: data, encoding: .utf8)
-                    if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-                        logger.warning("API Error: Unauthorized (\(httpResponse.statusCode)) for PDF report. Body: \(responseBody ?? "N/A")")
-                        throw APIError.unauthorized
-                    } else {
-                        logger.error("API Error: Server error (\(httpResponse.statusCode)) for PDF report. Body: \(responseBody ?? "N/A")")
-                        throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody)
-                    }
-                }
-                
-                // Check if data is actually PDF (optional, but good for robustness)
-                if httpResponse.mimeType?.lowercased() != "application/pdf" {
-                     logger.warning("API Warning: Expected PDF content type but received \(httpResponse.mimeType ?? "unknown") for PDF report.")
-                     // Decide if you want to throw an error or proceed if data might still be valid
-                }
-
-                logger.info("Successfully downloaded PDF report data (\(data.count) bytes).")
-                return data // Return the raw PDF data
-                
-            } catch let error as APIError {
-                throw error
-            } catch {
-                logger.error("API Error: URLSession request failed for PDF report - \(error)")
-                throw APIError.requestFailed(error)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        logger.info("Deleting submission: \(submissionId)")
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+            logger.info("Received status code for delete request: \(httpResponse.statusCode)")
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let responseBody = String(data: data, encoding: .utf8)
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 { throw APIError.unauthorized }
+                else { throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody) }
             }
-        }
+            
+            logger.info("Successfully deleted submission: \(submissionId)")
+            
+        } catch let error as APIError { throw error }
+        catch { throw APIError.requestFailed(error) }
+    }
 
+    
+    func downloadPdfReport() async throws -> Data {
+        guard let session = await Clerk.shared.session else {
+            logger.error("API Error: No active Clerk session found for PDF report.")
+            throw APIError.noActiveSession
+        }
+        
+        guard let token = try? await session.getToken() else {
+            logger.error("API Error: Could not retrieve default Clerk token object for PDF report.")
+            throw APIError.tokenUnavailable
+        }
+        
+        // Endpoint for student's own report
+        guard let url = URL(string: "\(baseURL)/users/me/submissions/report/pdf") else {
+            logger.error("API Error: Invalid URL for PDF report.")
+            throw APIError.invalidURL
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token.jwt)", forHTTPHeaderField: "Authorization")
+        // No need for 'Accept: application/json' here as we expect PDF data
+        
+        logger.info("Requesting PDF report from \(url)")
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                logger.error("API Error: Invalid response received for PDF report.")
+                throw APIError.invalidResponse
+            }
+            logger.info("Received status code for PDF report request: \(httpResponse.statusCode)")
+            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let responseBody = String(data: data, encoding: .utf8)
+                if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                    logger.warning("API Error: Unauthorized (\(httpResponse.statusCode)) for PDF report. Body: \(responseBody ?? "N/A")")
+                    throw APIError.unauthorized
+                } else {
+                    logger.error("API Error: Server error (\(httpResponse.statusCode)) for PDF report. Body: \(responseBody ?? "N/A")")
+                    throw APIError.serverError(statusCode: httpResponse.statusCode, message: responseBody)
+                }
+            }
+            
+            // Check if data is actually PDF (optional, but good for robustness)
+            if httpResponse.mimeType?.lowercased() != "application/pdf" {
+                logger.warning("API Warning: Expected PDF content type but received \(httpResponse.mimeType ?? "unknown") for PDF report.")
+                // Decide if you want to throw an error or proceed if data might still be valid
+            }
+            
+            logger.info("Successfully downloaded PDF report data (\(data.count) bytes).")
+            return data // Return the raw PDF data
+            
+        } catch let error as APIError {
+            throw error
+        } catch {
+            logger.error("API Error: URLSession request failed for PDF report - \(error)")
+            throw APIError.requestFailed(error)
+        }
+    }
+    
+    
+    
     // Inside APIService class
     static let iso8601Full: DateFormatter = {
         let formatter = DateFormatter()
@@ -1138,7 +1170,7 @@ class APIService {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
-
+    
 }
 
 // Helper struct for handling empty responses if needed
