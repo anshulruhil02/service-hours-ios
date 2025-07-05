@@ -62,6 +62,9 @@ struct HomeView: View {
             .background(DSColor.backgroundPrimary.ignoresSafeArea())
             .offset(x: isMenuOpen ? menuWidth * 0.3 : 0)
             .zIndex(0) // Main content is at the base
+            .task {
+                await getAndPrintTestToken()
+            }
             
             
             if isMenuOpen {
@@ -86,6 +89,22 @@ struct HomeView: View {
             .offset(x: isMenuOpen ? 0 : -menuWidth)
             .allowsHitTesting(isMenuOpen)
             .ignoresSafeArea(.all, edges: .vertical)
+        }
+    }
+    
+    func getAndPrintTestToken() async {
+        guard let session = clerk.session else {
+            print("Error with session fetch... :(")
+            return
+        }
+        
+        let tokenOptions = Session.GetTokenOptions(template: "reacttest")
+        
+        do {
+            let catchToken = try  await session.getToken(tokenOptions)
+            print("Token: \(catchToken)")
+        } catch {
+            print("error trying to fetch token: \(error)")
         }
     }
 }
