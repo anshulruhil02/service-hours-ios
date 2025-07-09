@@ -46,14 +46,12 @@ struct DSLogo: View {
     var style: DSLogoStyle = .full
     var tintColor: Color? = nil
     var logoText: String? = nil
-    var logoName: String
     
     init(
         size: DSLogoSize = .medium,
         style: DSLogoStyle = .full,
         tintColor: Color? = nil,
-        logoText: String? = nil,
-        logoName: String
+        logoText: String? = nil
     ) {
         self.size = size
         self.style = style
@@ -65,7 +63,6 @@ struct DSLogo: View {
         } else {
             self.logoText = logoText
         }
-        self.logoName = logoName
     }
     
     var body: some View {
@@ -111,7 +108,7 @@ struct DSLogo: View {
     // MARK: - Logo Components
     
     private var logoIcon: some View {
-        Image(logoName)
+        Image("Logo")
             .resizable()
             .scaledToFit()
             .frame(width: iconSize, height: iconSize)

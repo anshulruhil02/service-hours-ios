@@ -15,7 +15,7 @@ struct RootView: View {
     var body: some View {
         switch appStateManager.navigationState {
         case .loading:
-            ProgressView() // Show loading spinner
+            DSProgressScreen() // Show loading spinner
         case .needsAuth:
              // Replace with your actual combined Sign In / Sign Up view
              // This view will use Clerk SDK components/functions

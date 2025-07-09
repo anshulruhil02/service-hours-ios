@@ -134,7 +134,7 @@ struct CompleteUserProfileView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        DSLogo(size: .small, style: .icon, logoName: "logo")
+                        DSLogo(size: .small, style: .icon)
                     }
                 }
             }

@@ -38,7 +38,7 @@ struct ServiceHoursTracker_iOSApp: App {
                             handleSessionChange(newSession: newSession)
                         }
                 } else {
-                    ProgressView()
+                    DSProgressScreen()
                         .onAppear {
                             logger.debug("ProgressView appeared, Clerk not loaded yet (isLoaded: \(clerk.isLoaded)).")
                         }

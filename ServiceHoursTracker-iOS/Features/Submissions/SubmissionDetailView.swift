@@ -491,7 +491,7 @@ struct SignatureDisplayView: View {
                 
                 if isLoading {
                     VStack(spacing: DSSpacing.sm) {
-                        ProgressView()
+                        DSProgressScreen()
                             .scaleEffect(0.8)
                         Text("Loading signature...")
                             .font(DSTypography.caption)
@@ -501,7 +501,7 @@ struct SignatureDisplayView: View {
                     AsyncImage(url: url) { phase in
                         switch phase {
                         case .empty:
-                            ProgressView()
+                            DSProgressScreen()
                         case .success(let image):
                             image
                                 .resizable()

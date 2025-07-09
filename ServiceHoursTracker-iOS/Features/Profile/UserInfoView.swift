@@ -7,9 +7,13 @@
 
 import SwiftUI
 import os.log
+import Clerk
 
 struct UserInfoView: View {
+    @Environment(Clerk.self) private var clerk
     @ObservedObject var viewModel: HomeViewModel
+    @State private var isSigningOut = false
+    @State private var showSignOutAlert = false
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "UserInfoView")
     
     var body: some View {
@@ -59,6 +63,20 @@ struct UserInfoView: View {
                     )
                 }
                 
+                // Sign Out Section
+                VStack(spacing: DSSpacing.lg) {
+                    DSButton("Sign Out") {
+                        showSignOutAlert = true
+                    }
+                    .buttonStyle(.destructive)
+                    .buttonSize(.large)
+                    .leadingIcon(Image(systemName: "rectangle.portrait.and.arrow.right"))
+                    .fullWidth()
+                    .loading(isSigningOut)
+                    .enabled(!isSigningOut)
+                }
+                .padding(.horizontal, DSSpacing.lg)
+                
                 // Loading and Error States
                 if viewModel.isLoadingProfile {
                     LoadingStateView()
@@ -76,8 +94,35 @@ struct UserInfoView: View {
         .background(DSColor.backgroundSecondary)
         .navigationTitle("My Profile")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Sign Out", isPresented: $showSignOutAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Sign Out", role: .destructive) {
+                signOut()
+            }
+        } message: {
+            Text("Are you sure you want to sign out?")
+        }
         .task {
             await viewModel.fetchUserProfile()
+        }
+    }
+    
+    // MARK: - Sign Out Function
+    private func signOut() {
+        isSigningOut = true
+        
+        Task {
+            do {
+                try await clerk.signOut()
+                logger.info("User signed out successfully")
+            } catch {
+                logger.error("Failed to sign out: \(error.localizedDescription)")
+                // Handle error if needed - could show an error alert
+            }
+            
+            await MainActor.run {
+                isSigningOut = false
+            }
         }
     }
     
@@ -93,7 +138,7 @@ struct UserInfoView: View {
     }
 }
 
-// MARK: - Supporting Views
+// MARK: - Supporting Views (unchanged)
 
 struct ProfileHeaderView: View {
     
@@ -339,7 +384,7 @@ struct InfoItemRow: View {
 struct LoadingStateView: View {
     var body: some View {
         VStack(spacing: DSSpacing.md) {
-            ProgressView()
+            DSProgressScreen()
                 .scaleEffect(1.2)
                 .progressViewStyle(CircularProgressViewStyle(tint: DSColor.accent))
             

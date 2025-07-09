@@ -75,7 +75,7 @@ struct SubmissionFormView: View {
     
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var viewModel: HomeViewModel
-
+    
     
     // API Service instance (consider injecting later)
     private let apiService = APIService()
@@ -95,11 +95,11 @@ struct SubmissionFormView: View {
     
     var allFieldsValid: Bool {
         return !orgName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-               !hoursString.isEmpty &&
-               Double(hoursString) != nil &&
-               !telephone.isEmpty &&
-               Double(telephone) != nil &&
-               !supervisorName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !hoursString.isEmpty &&
+        Double(hoursString) != nil &&
+        !telephone.isEmpty &&
+        Double(telephone) != nil &&
+        !supervisorName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
     var signaturesComplete: Bool {
@@ -134,89 +134,122 @@ struct SubmissionFormView: View {
                     // Basic Information Section
                     FormSection(title: "Service Details", icon: "info.circle.fill") {
                         VStack(spacing: DSSpacing.lg) {
-                            InputFieldRow(
-                                label: "Organization Name",
-                                placeholder: "e.g., Local Food Bank",
-                                text: $orgName,
-                                focusField: $focusedField,
-                                field: .orgName,
-                                isRequired: true
-                            )
-                            
-                            HStack(spacing: DSSpacing.md) {
-                                InputFieldRow(
-                                    label: "Hours Completed",
-                                    placeholder: "8.5",
-                                    text: $hoursString,
-                                    focusField: $focusedField,
-                                    field: .hours,
-                                    keyboardType: .decimalPad,
-                                    isRequired: true
-                                )
+                            VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                                HStack {
+                                    Text("Organization Name")
+                                        .font(DSTypography.subheadline)
+                                        .foregroundColor(DSColor.textPrimary)
+                                    Text("*")
+                                        .font(DSTypography.subheadline)
+                                        .foregroundColor(DSColor.statusError)
+                                }
                                 
-                                InputFieldRow(
-                                    label: "Contact Phone",
-                                    placeholder: "(555) 123-4567",
-                                    text: $telephone,
-                                    focusField: $focusedField,
-                                    field: .telephone,
-                                    keyboardType: .phonePad,
-                                    isRequired: true
+                                DSTextField(
+                                    "e.g., Local Food Bank",
+                                    text: $orgName,
+                                    leadingImage: Image(systemName: "building.2"),
+                                    keyboardType: .default,
+                                    textContentType: .organizationName
                                 )
+                                .focused($focusedField, equals: .orgName)
                             }
                             
-                            InputFieldRow(
-                                label: "Supervisor Name",
-                                placeholder: "Full name of supervising staff",
-                                text: $supervisorName,
-                                focusField: $focusedField,
-                                field: .supervisorName,
-                                isRequired: true
-                            )
+                            HStack(spacing: DSSpacing.md) {
+                                VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                                    HStack {
+                                        Text("Hours Completed")
+                                            .font(DSTypography.subheadline)
+                                            .foregroundColor(DSColor.textPrimary)
+                                        Text("*")
+                                            .font(DSTypography.subheadline)
+                                            .foregroundColor(DSColor.statusError)
+                                    }
+                                    
+                                    DSTextField(
+                                        "8.5",
+                                        text: $hoursString,
+                                        leadingImage: Image(systemName: "clock"),
+                                        keyboardType: .decimalPad
+                                    )
+                                    .focused($focusedField, equals: .hours)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: DSSpacing.sm) {
+                                    HStack {
+                                        Text("Contact Phone")
+                                            .font(DSTypography.subheadline)
+                                            .foregroundColor(DSColor.textPrimary)
+                                        Text("*")
+                                            .font(DSTypography.subheadline)
+                                            .foregroundColor(DSColor.statusError)
+                                    }
+                                    
+                                    DSTextField(
+                                        "(555) 123-4567",
+                                        text: $telephone,
+                                        leadingImage: Image(systemName: "phone"),
+                                        keyboardType: .phonePad,
+                                        textContentType: .telephoneNumber
+                                    )
+                                    .focused($focusedField, equals: .telephone)
+                                }
+                            }
                             
                             VStack(alignment: .leading, spacing: DSSpacing.sm) {
                                 HStack {
-                                    Text("Date Completed")
+                                    Text("Supervisor Name")
                                         .font(DSTypography.subheadline)
-                                        .foregroundColor(DSColor.textSecondary)
-                                    
+                                        .foregroundColor(DSColor.textPrimary)
                                     Text("*")
+                                        .font(DSTypography.subheadline)
                                         .foregroundColor(DSColor.statusError)
-                                    
-                                    Spacer()
                                 }
                                 
-                                DatePicker("", selection: $submissionDate, displayedComponents: [.date])
-                                    .datePickerStyle(.compact)
-                                    .tint(DSColor.accent)
-                                    .foregroundColor(DSColor.textPrimary)
-                                    .padding(DSSpacing.md)
-                                    .background(DSColor.backgroundSecondary)
-                                    .cornerRadius(DSRadius.md)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: DSRadius.md)
-                                            .stroke(DSColor.border, lineWidth: 1)
-                                    )
+                                DSTextField(
+                                    "Full name of supervising staff",
+                                    text: $supervisorName,
+                                    leadingImage: Image(systemName: "person.circle"),
+                                    keyboardType: .default,
+                                    textContentType: .name
+                                )
+                                .focused($focusedField, equals: .supervisorName)
                             }
                             
                             VStack(alignment: .leading, spacing: DSSpacing.sm) {
-                                Text("Description (Optional)")
-                                    .font(DSTypography.subheadline)
-                                    .foregroundColor(DSColor.textSecondary)
-                                
-                                TextEditor(text: $description)
-                                    .frame(height: 100)
-                                    .focused($focusedField, equals: .description)
-                                    .foregroundColor(DSColor.textPrimary)
-                                    .scrollContentBackground(.hidden)
-                                    .padding(DSSpacing.md)
-                                    .background(DSColor.backgroundSecondary)
-                                    .cornerRadius(DSRadius.md)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: DSRadius.md)
-                                            .stroke(DSColor.border, lineWidth: 1)
-                                    )
-                            }
+                                        HStack {
+                                            Text("Service Description")
+                                                .font(DSTypography.subheadline)
+                                                .foregroundColor(DSColor.textPrimary)
+                                            Text("*")
+                                                .font(DSTypography.subheadline)
+                                                .foregroundColor(DSColor.statusError)
+                                        }
+                                        
+                                        ZStack(alignment: .topLeading) {
+                                            TextEditor(text: $description)
+                                                .font(DSTypography.bodyMedium)
+                                                .foregroundColor(DSColor.textPrimary)
+                                                .padding(DSSpacing.lg)
+                                                .background(Color.white)
+                                                .cornerRadius(DSRadius.md)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: DSRadius.md)
+                                                        .stroke(DSColor.border.opacity(0.3), lineWidth: 1)
+                                                )
+                                                .frame(minHeight: 100)
+                                                .focused($focusedField, equals: .description)
+                                                .scrollContentBackground(.hidden)
+                                            
+                                            if description.isEmpty {
+                                                Text("Describe the service activities you performed...")
+                                                    .font(DSTypography.caption)
+                                                    .foregroundColor(DSColor.disabledText)
+                                                    .padding(.leading, DSSpacing.lg + 4) // +4 for TextEditor's internal padding
+                                                    .padding(.top, DSSpacing.lg + 8)     // +8 for TextEditor's internal padding
+                                                    .allowsHitTesting(false)
+                                            }
+                                        }
+                                    }
                         }
                     }
                     
@@ -790,38 +823,6 @@ struct FormSection<Content: View>: View {
     }
 }
 
-struct InputFieldRow: View {
-    let label: String
-    let placeholder: String
-    @Binding var text: String
-    var focusField: FocusState<Field?>.Binding
-    let field: Field
-    var keyboardType: UIKeyboardType = .default
-    var isRequired: Bool = false
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: DSSpacing.sm) {
-            HStack {
-                Text(label)
-                    .font(DSTypography.subheadline)
-                    .foregroundColor(DSColor.textSecondary)
-                
-                if isRequired {
-                    Text("*")
-                        .foregroundColor(DSColor.statusError)
-                }
-                
-                Spacer()
-            }
-            
-            TextField(placeholder, text: $text)
-                .focused(focusField, equals: field)
-                .keyboardType(keyboardType)
-                .dsInputFieldStyle()
-        }
-    }
-}
-
 struct SignatureInputView: View {
     let title: String
     let subtitle: String
@@ -884,7 +885,7 @@ struct SignatureInputView: View {
                 AsyncImage(url: previousSignatureURL) { phase in
                     switch phase {
                     case .empty:
-                        ProgressView()
+                        DSProgressScreen()
                             .frame(height: 120)
                     case .success(let image):
                         image

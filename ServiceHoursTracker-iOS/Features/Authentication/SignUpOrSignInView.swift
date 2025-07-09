@@ -43,7 +43,7 @@ struct SignUpOrSignInView: View {
                     
                     Spacer()
                     
-                    DSLogo(size: .extraLarge, style: .monochrome, logoText: "Serve", logoName: "logo")
+                    DSLogo(size: .extraLarge, style: .monochrome, logoText: "Serve")
                     
                     Spacer()
                 }
