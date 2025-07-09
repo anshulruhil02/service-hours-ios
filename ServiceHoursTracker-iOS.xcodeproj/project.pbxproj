@@ -34,7 +34,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		F3533DB52DD71B4D00206581 /* Exceptions for "ServiceHoursTracker-iOS" folder in "ServiceHoursTracker-iOS" target */ = {
+		F3DA05DB2E1A0FFC0099FEF4 /* Exceptions for "ServiceHoursTracker-iOS" folder in "ServiceHoursTracker-iOS" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -47,7 +47,7 @@
 		F3DB01242DB6DE7100AB909F /* ServiceHoursTracker-iOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				F3533DB52DD71B4D00206581 /* Exceptions for "ServiceHoursTracker-iOS" folder in "ServiceHoursTracker-iOS" target */,
+				F3DA05DB2E1A0FFC0099FEF4 /* Exceptions for "ServiceHoursTracker-iOS" folder in "ServiceHoursTracker-iOS" target */,
 			);
 			path = "ServiceHoursTracker-iOS";
 			sourceTree = "<group>";
