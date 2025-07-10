@@ -101,14 +101,23 @@ struct DSTextField: View {
                     .foregroundStyle(iconColor)
             }
             
-            TextField(placeholder, text: $text) { editing in
-                isEditing = editing
+            ZStack(alignment: .leading) {
+                // Custom placeholder
+                if text.isEmpty {
+                    Text(placeholder)
+                        .foregroundColor(DSColor.secondary)
+                        .allowsHitTesting(false)
+                }
+                
+                TextField("", text: $text) { editing in
+                    isEditing = editing
+                }
+                .foregroundColor(textColor)
+                .tint(DSColor.accent)
+                .keyboardType(keyboardType)
+                .textContentType(textContentType)
+                .textInputAutocapitalization(.never)
             }
-            .foregroundColor(textColor)
-            .tint(DSColor.accent)
-            .keyboardType(keyboardType)
-            .textContentType(textContentType)
-            .textInputAutocapitalization(.never)
             
             if let trailingImage {
                 trailingImage
@@ -189,6 +198,7 @@ struct DSSecureField: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: DSSpacing.sm) {
+            
             HStack(spacing: DSSpacing.md) {
                 if let leadingImage {
                     leadingImage
@@ -199,28 +209,44 @@ struct DSSecureField: View {
                 }
                 
                 if showPassword {
-                    TextField(placeholder, text: $text) { editing in
-                        isEditing = editing
+                    ZStack(alignment: .leading) {
+                        // Custom placeholder
+                        if text.isEmpty {
+                            Text(placeholder)
+                                .foregroundColor(DSColor.secondary)
+                                .allowsHitTesting(false)
+                        }
+                        TextField(placeholder, text: $text) { editing in
+                            isEditing = editing
+                        }
+                        .foregroundColor(textColor)
+                        .tint(DSColor.accent)
+                        .textContentType(.password)
+                        .textInputAutocapitalization(.never)
+                        .disableAutocorrection(true)
                     }
-                    .foregroundColor(textColor)
-                    .tint(DSColor.accent)
-                    .textContentType(.password)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
                 } else {
-                    SecureField(placeholder, text: $text, onCommit: {
-                        isEditing = false
-                    })
-                    .foregroundColor(textColor)
-                    .tint(DSColor.accent)
-                    .textContentType(.password)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-                    .onTapGesture {
-                        isEditing = true
-                    }
-                    .onChange(of: text) { _ in
-                        isEditing = true
+                    ZStack(alignment: .leading) {
+                        // Custom placeholder
+                        if text.isEmpty {
+                            Text(placeholder)
+                                .foregroundColor(DSColor.secondary)
+                                .allowsHitTesting(false)
+                        }
+                        SecureField(placeholder, text: $text, onCommit: {
+                            isEditing = false
+                        })
+                        .foregroundColor(textColor)
+                        .tint(DSColor.accent)
+                        .textContentType(.password)
+                        .textInputAutocapitalization(.never)
+                        .disableAutocorrection(true)
+                        .onTapGesture {
+                            isEditing = true
+                        }
+                        .onChange(of: text) { _ in
+                            isEditing = true
+                        }
                     }
                 }
                 
